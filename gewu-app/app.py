@@ -213,6 +213,36 @@ def del_project(pid):
         c.execute("DELETE FROM projects WHERE id=?", (pid,))
     return jsonify({"ok": True})
 
+@app.patch("/api/projects/<int:pid>")
+def rename_project(pid):
+    p, err = _own_project(pid)
+    if err:
+        return err
+    title = (request.get_json(force=True).get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "课题名不能为空"}), 400
+    with db() as c:
+        c.execute("UPDATE projects SET title=? WHERE id=?", (title[:60], pid))
+    return jsonify({"ok": True})
+
+@app.get("/api/llm-test")
+def llm_test():
+    """部署排障：向配置的 LLM 发一次最小请求，报告连通性与延迟。"""
+    if not LLM_OK:
+        return jsonify({"ok": False, "error": "未配置 LLM_API_KEY（demo 模式）", "model": "demo"})
+    t0 = time.time()
+    try:
+        r = requests.post(LLM_BASE + "/chat/completions",
+                          json={"model": LLM_MODEL, "max_tokens": 8, "messages": [{"role": "user", "content": "回复：连通"}]},
+                          headers={"Authorization": f"Bearer {LLM_KEY}"}, timeout=20)
+        ms = int((time.time() - t0) * 1000)
+        if r.status_code != 200:
+            return jsonify({"ok": False, "error": f"HTTP {r.status_code}: {r.text[:120]}", "model": LLM_MODEL, "ms": ms})
+        reply = r.json()["choices"][0]["message"].get("content", "")
+        return jsonify({"ok": True, "model": LLM_MODEL, "ms": ms, "reply": reply[:20]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:160], "model": LLM_MODEL, "ms": int((time.time() - t0) * 1000)})
+
 # ---------- 对话 ----------
 @app.post("/api/projects/<int:pid>/messages")
 def add_message(pid):
@@ -364,6 +394,53 @@ def switch_mode(pid):
 _PIECE_KEYS = ["教学设计文档", "分层目标表", "评价量规", "资源包", "实训脚本",
                "课堂智能体配置", "课标分析单", "教材取舍", "教材分析", "四核设计单",
                "主题四核", "工具与实践设计单", "问题链"]
+
+def _md_to_docx_bytes(md_text):
+    """把方案主文档（轻量Markdown）转为 Word：标题/表格/列表/段落。无 python-docx 时返回 None。"""
+    try:
+        from docx import Document
+        from docx.oxml.ns import qn
+        from docx.shared import Pt
+        import io as _io
+    except ImportError:
+        return None
+    doc = Document()
+    st = doc.styles["Normal"]
+    st.font.name = "Calibri"
+    st.font.size = Pt(11)
+    st.element.rPr.rFonts.set(qn("w:eastAsia"), "微软雅黑")
+    lines = md_text.splitlines()
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        s = ln.strip()
+        if s.startswith("#"):
+            lvl = min(len(s) - len(s.lstrip("#")), 4)
+            doc.add_heading(s.lstrip("# ").strip(), level=lvl)
+        elif s.startswith("|") and i + 1 < len(lines) and re.match(r"^\s*\|[\s:|-]+\|\s*$", lines[i + 1]):
+            rows = []
+            j = i
+            while j < len(lines) and lines[j].strip().startswith("|"):
+                cells = [c.strip() for c in lines[j].strip().strip("|").split("|")]
+                rows.append(cells)
+                j += 1
+            rows.pop(1)  # 去掉分隔行
+            cols = max(len(r) for r in rows)
+            t = doc.add_table(rows=len(rows), cols=cols)
+            t.style = "Table Grid"
+            for ri, r in enumerate(rows):
+                for ci, c in enumerate(r):
+                    t.cell(ri, ci).text = re.sub(r"\*\*(.+?)\*\*", r"\1", c)
+            i = j
+            continue
+        elif s.startswith("- "):
+            doc.add_paragraph(re.sub(r"\*\*(.+?)\*\*", r"\1", s[2:]), style="List Bullet")
+        elif s:
+            doc.add_paragraph(re.sub(r"\*\*(.+?)\*\*", r"\1", s))
+        i += 1
+    buf = _io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
 _HEAD_RE = re.compile(r"^(#{2,4})\s*第([一二三四五六1-6])件[：:]?\s*(.*)$|^#{2,4}\s*(.+)$", re.M)
 
 @app.get("/api/projects/<int:pid>/export")
@@ -408,6 +485,13 @@ def export_package(pid):
             for name, bodies in pieces.items():
                 safe = re.sub(r'[\\/:*?"<>|]', "_", name)[:40]
                 z.writestr(f"{safe}.md", "\n\n".join(bodies).strip())
+            # Word 版主文档：教师最终交付物（优先取"教学设计文档/问题链"件，否则全件汇总）
+            main_key = next((k for k in pieces if "教学设计文档" in k or "问题链" in k), None)
+            main_md = "\n\n".join(pieces[main_key]) if main_key else "\n\n".join(
+                f"# {k}\n" + "\n".join(v) for k, v in pieces.items())
+            docx_bytes = _md_to_docx_bytes(f"# {p['title']} · 教学设计方案\n\n" + main_md)
+            if docx_bytes:
+                z.writestr("00_教学设计文档.docx", docx_bytes)
         conv = "\n\n".join(f"**{m['role']}**：{m['content']}" for m in msgs)
         z.writestr("00_对话完整记录.md", conv)
         z.writestr("项目信息.txt", f"课题：{p['title']}\n模式：{MODE_NAME[p['mode']]}\n进度：{p['current_node']}\n导出时间：{time.strftime('%Y-%m-%d %H:%M')}\n")

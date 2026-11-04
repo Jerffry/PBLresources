@@ -130,6 +130,40 @@ class GewuAPITest(unittest.TestCase):
         self.assertEqual(gewu._extract_node("【进度：N0已完成｜待办：N1议题选择】"), "N1")
         self.assertEqual(gewu._extract_node("【进度：M1已完成｜M2已完成｜M5已完成｜已交付】"), "M5")
 
+    def test_14_rename_project(self):
+        tok = self.post("/api/auth/guest").get_json()["token"]
+        pid = self.post("/api/projects", {"title": "旧课题", "mode": "global"}, tok).get_json()["id"]
+        r = self.c.patch(f"/api/projects/{pid}", json={"title": "新课题名"},
+                         headers={"Authorization": "Bearer " + tok})
+        self.assertEqual(r.status_code, 200)
+        d = self.get("/api/projects", tok).get_json()["projects"]
+        self.assertEqual(d[0]["title"], "新课题名")
+        self.assertEqual(self.c.patch(f"/api/projects/{pid}", json={"title": "  "},
+                                      headers={"Authorization": "Bearer " + tok}).status_code, 400)
+
+    def test_15_llm_test_endpoint(self):
+        r = self.get("/api/llm-test")
+        self.assertEqual(r.status_code, 200)
+        d = r.get_json()
+        self.assertIn("ok", d)
+        if not gewu.LLM_OK:
+            self.assertFalse(d["ok"])  # demo 模式应如实报告未配置
+
+    def test_16_export_contains_docx(self):
+        tok = self.post("/api/auth/guest").get_json()["token"]
+        pid = self.post("/api/projects", {"title": "课题D", "mode": "global"}, tok).get_json()["id"]
+        self.post(f"/api/projects/{pid}/messages", {"content": "go"}, tok)
+        for _ in range(7):
+            self.get(f"/api/projects/{pid}/stream?token={tok}")
+            self.post(f"/api/projects/{pid}/messages", {"content": "继续"}, tok)
+            self.get(f"/api/projects/{pid}/stream?token={tok}")
+        r = self.get(f"/api/projects/{pid}/export", tok)
+        z = zipfile.ZipFile(io.BytesIO(r.data))
+        self.assertTrue(any(n.endswith(".docx") for n in z.namelist()),
+                        f"zip 中缺少 Word 文档: {z.namelist()}")
+        docx_name = next(n for n in z.namelist() if n.endswith(".docx"))
+        self.assertGreater(len(z.read(docx_name)), 4000, "docx 应为完整文档（>4KB）")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

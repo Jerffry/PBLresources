@@ -257,6 +257,19 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 @keyframes mascotPop{from{opacity:0;transform:translateY(8px) scale(.92)}to{opacity:1;transform:none}}
 #mascotBubble .typing-dots{height:14px}
 
+/* 消息节点锚点：点击节点流跳转后的高亮闪烁 */
+.msg.node-anchor{scroll-margin:60px}
+.msg.node-anchor.flash .bubble{animation:anchorFlash 1.4s ease}
+@keyframes anchorFlash{0%{box-shadow:0 0 0 4px rgba(201,162,75,.75)}100%{box-shadow:var(--sh-1)}}
+/* 节点流可点击 */
+.n-node{cursor:pointer}
+
+/* 项目卡操作按钮 */
+.proj .m .ops{margin-left:auto;display:flex;gap:2px;opacity:0;transition:var(--tr)}
+.proj:hover .m .ops{opacity:1}
+.proj .m .ops button{background:none;border:0;color:rgba(255,255,255,.55);cursor:pointer;font-size:11px;padding:1px 4px;border-radius:4px}
+.proj .m .ops button:hover{color:#fff;background:rgba(255,255,255,.16)}
+
 /* ---------- 响应式 ---------- */
 @media (max-width:900px){
   #corePanel{grid-template-columns:repeat(2,1fr)}

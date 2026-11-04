@@ -221,6 +221,47 @@ async function init() {
   };
   initMascotDrag();
   setTimeout(() => mascotSay("你好，我是格物 🌏 新建一个项目，或点下面的示例课题开始设计吧！", { hold: 9000 }), 900);
+
+  // 键盘快捷键：/ 聚焦输入框（未处于输入态时）、Esc 关闭弹层、Ctrl+Enter 发送
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      ["modalNew", "modalRename"].forEach(id => $(id).classList.add("hidden"));
+      $("soloPop").classList.add("hidden");
+      $("mascotBubble").classList.add("hidden");
+      return;
+    }
+    const inField = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if (e.key === "/" && !inField && current) {
+      e.preventDefault();
+      $("input").focus();
+    }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && document.activeElement === $("input")) {
+      e.preventDefault();
+      send();
+    }
+  });
+
+  // LLM 引擎连通性测试（点击侧栏引擎状态）
+  $("llmState").style.cursor = "pointer";
+  $("llmState").title = "点击测试大模型连通性";
+  $("llmState").onclick = async () => {
+    toast("正在测试引擎连通性…");
+    try {
+      const d = await (await fetch("/api/llm-test")).json();
+      if (d.ok) toast(`✓ 引擎连通：${d.model}（${d.ms}ms）`, "ok");
+      else toast(`✗ ${d.error}`, "");
+    } catch (_) { toast("✗ 测试请求失败", ""); }
+  };
+
+  // 多标签页同步：其它标签页的项目变更广播到本页
+  window.addEventListener("storage", (e) => {
+    if (e.key === "gewu_bump") loadProjects().catch(() => {});
+  });
+  const origLoad = loadProjects;
+  loadProjects = async function () {  // 变更后广播给其它标签页
+    localStorage.setItem("gewu_bump", String(Date.now()));
+    return origLoad();
+  };
 }
 
 async function loadProjects() {
@@ -232,10 +273,14 @@ async function loadProjects() {
     const el = document.createElement("div");
     el.className = "proj" + (current && p.id === current.id ? " active" : "");
     el.innerHTML = `<div class="t"></div><div class="m"><span class="mb"></span><span class="nd"></span>
-      <button class="del" title="删除">✕</button></div>`;
+      <span class="ops"><button class="rn" title="重命名">✎</button><button class="del" title="删除">✕</button></span></div>`;
     el.querySelector(".t").textContent = p.title;
     el.querySelector(".mb").textContent = MODE_NAME[p.mode] || p.mode;
     el.querySelector(".nd").textContent = p.current_node || "";
+    el.querySelector(".rn").onclick = async (e) => {
+      e.stopPropagation();
+      openRename(p);
+    };
     el.querySelector(".del").onclick = async (e) => {
       e.stopPropagation();
       if (!confirm(`删除项目「${p.title}」？不可恢复。`)) return;
@@ -248,6 +293,28 @@ async function loadProjects() {
     box.appendChild(el);
   }
 }
+
+/* ---------- 项目重命名 ---------- */
+function openRename(p) {
+  $("rnTitle").value = p.title;
+  $("modalRename").classList.remove("hidden");
+  $("rnTitle").focus();
+  $("rnTitle").select();
+  const save = async () => {
+    const title = $("rnTitle").value.trim();
+    if (!title || title === p.title) { $("modalRename").classList.add("hidden"); return; }
+    try {
+      await api(`/api/projects/${p.id}`, { method: "PATCH", body: JSON.stringify({ title }) });
+      toast("课题已重命名", "ok");
+      if (current && current.id === p.id) { current.title = title; $("projTitle").textContent = title; }
+    } catch (err) { toast(err.message); }
+    $("modalRename").classList.add("hidden");
+    loadProjects();
+  };
+  $("rnSave").onclick = save;
+  $("rnTitle").onkeydown = (e) => { if (e.key === "Enter") save(); };
+}
+$("rnCancel") && ($("rnCancel").onclick = () => $("modalRename").classList.add("hidden"));
 
 /* ---------- 项目打开 / 新建 ---------- */
 async function openProject(id) {
@@ -323,6 +390,15 @@ function renderCores(doneSet) {
 }
 
 /* ---------- 节点流 ---------- */
+function jumpToNode(id) {
+  const anchors = [...document.querySelectorAll(`.msg.assistant[data-node="${id}"]`)];
+  if (!anchors.length) { toast(`「${id}」的产出消息尚未生成`, ""); return; }
+  const el = anchors[anchors.length - 1];
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.remove("flash");
+  void el.offsetWidth;  // 重启动画
+  el.classList.add("flash");
+}
 function renderNodes(mode, doneSet) {
   const flow = $("nodeFlow");
   flow.innerHTML = "";
@@ -339,6 +415,8 @@ function renderNodes(mode, doneSet) {
     }
     el.className = cls;
     el.textContent = `${id} ${name}`;
+    el.title = "点击跳转到本环节产出";
+    el.onclick = () => jumpToNode(id);
     flow.appendChild(el);
     if (i < nodes.length - 1) {
       const sep = document.createElement("span");
@@ -413,7 +491,11 @@ function renderMD(text) {
 function addMessage(role, content, opt = {}) {
   $("chat").classList.remove("empty");
   const wrap = document.createElement("div");
-  wrap.className = `msg ${role}`;
+  wrap.className = `msg ${role} node-anchor`;
+  if (role === "assistant") {
+    const m = content.match(/🧭[^\n]*?([NM]\d)\s*[｜|]/);  // 节点锚点：供节点流跳转定位
+    if (m) wrap.dataset.node = m[1];
+  }
   const who = document.createElement("div");
   who.className = "who";
   who.textContent = role === "user" ? "师" : "格";
