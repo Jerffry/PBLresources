@@ -219,9 +219,29 @@ async function init() {
   };
   $("btnExport").onclick = () => {
     if (!current) return;
-    mascotSay("zip 开始下载：方案按件拆分为 md，附完整对话记录 📦");
-    window.open(`/api/projects/${current.id}/export`);
+    mascotSay("zip 开始下载：方案按件拆分为 md + Word 文档，附完整对话记录 📦");
+    window.open(`/api/projects/${current.id}/export?token=${encodeURIComponent(token())}`);
   };
+  // 课后学情反馈（闭环）
+  $("btnFeedback").onclick = () => {
+    if (!current || streaming) return;
+    $("fbText").value = "";
+    $("modalFeedback").classList.remove("hidden");
+    $("fbText").focus();
+  };
+  $("fbCancel").onclick = () => $("modalFeedback").classList.add("hidden");
+  $("fbSubmit").onclick = async () => {
+    const text = $("fbText").value.trim();
+    if (text.length < 15) { toast("请粘贴更完整的学生表现材料（至少15字）"); return; }
+    $("modalFeedback").classList.add("hidden");
+    addMessage("user", "【课后反馈】" + text + ($("fbIncludeGoals").checked ? "" : "\n（教师选择不附带对话上下文）"));
+    await api(`/api/projects/${current.id}/messages`, {
+      method: "POST", body: JSON.stringify({ content: "【课后反馈】" + text + ($("fbIncludeGoals").checked ? "" : "\n（教师选择不附带对话上下文）") }),
+    });
+    streamOnce();
+  };
+  // 数据备份
+  $("btnBackup").onclick = () => window.open(`/api/backup?token=${encodeURIComponent(token())}`);
   $("btnSwitch").onclick = switchMode;
   // 输入框自动增高
   $("input").addEventListener("input", () => {
@@ -245,7 +265,7 @@ async function init() {
   // 键盘快捷键：/ 聚焦输入框（未处于输入态时）、Esc 关闭弹层、Ctrl+Enter 发送
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      ["modalNew", "modalRename"].forEach(id => $(id).classList.add("hidden"));
+      ["modalNew", "modalRename", "modalFeedback"].forEach(id => $(id).classList.add("hidden"));
       $("soloPop").classList.add("hidden");
       $("mascotBubble").classList.add("hidden");
       return;
@@ -376,6 +396,7 @@ function renderShell() {
   $("modeBadge").classList.toggle("hidden", !has);
   $("btnSwitch").classList.toggle("hidden", !has);
   $("btnExport").classList.toggle("hidden", !has);
+  $("btnFeedback").classList.toggle("hidden", !has);
   $("nodeFlow").classList.toggle("hidden", !has);
   $("inputBar").classList.toggle("hidden", !has);
   $("chat").classList.toggle("empty", !has);
@@ -587,28 +608,32 @@ function finish(full, bubble) {
   const btn = $("btnSend");
   btn.disabled = false;
   btn.textContent = "发送";
-  if (full) {
-    bubble.innerHTML = renderMD(full);
-    const wrap = bubble.parentElement;
-    const tools = document.createElement("div");
-    tools.className = "tools";
-    const cp = document.createElement("button");
-    cp.className = "ghost"; cp.textContent = "⧉ 复制";
-    cp.onclick = () => { navigator.clipboard.writeText(full); cp.textContent = "✓ 已复制"; setTimeout(() => cp.textContent = "⧉ 复制", 1500); };
-    tools.appendChild(cp);
-    wrap.appendChild(tools);
+  if (!full) {
+    bubble.closest(".msg").remove();  // 空响应不留"…"气泡
+    toast("⚠️ 生成失败或连接中断，请稍后重试");
+    mascotQuiet();
+    return;
   }
+  bubble.innerHTML = renderMD(full);
+  const wrap = bubble.parentElement;
+  const tools = document.createElement("div");
+  tools.className = "tools";
+  const cp = document.createElement("button");
+  cp.className = "ghost"; cp.textContent = "⧉ 复制";
+  cp.onclick = () => { navigator.clipboard.writeText(full); cp.textContent = "✓ 已复制"; setTimeout(() => cp.textContent = "⧉ 复制", 1500); };
+  tools.appendChild(cp);
+  wrap.appendChild(tools);
   scrollBottom(false);
   refreshProgress();
   loadProjects();
-  // 吉样物反馈：完成提示 / 方案包就绪提醒
+  // 吉样物反馈：完成提示 / 方案包就绪 / 学情反馈闭环
   const lastLine = full.slice(-400);
-  if (/已交付|全部完成|五件套已交付/.test(lastLine)) {
-    mascotSay("🎉 方案包已就绪！点右上「📦 导出方案包」即可按件拆分下载～", { hold: 12000 });
-  } else if (full) {
-    mascotSay("本环节完成 ✅ 请确认内容，回复「继续」进入下一环节，或告诉我要改哪里～");
+  if (/反馈已完成/.test(lastLine)) {
+    mascotSay("⟲ 学情再判定完成！可基于建议开启新一轮设计——新课题或同课题进阶都可以～", { hold: 12000 });
+  } else if (/已交付|全部完成|五件套已交付/.test(lastLine)) {
+    mascotSay("🎉 方案包已就绪！点右上「📦 导出方案包」即可按件拆分下载；课后可点「⟲ 课后反馈」回传学情～", { hold: 12000 });
   } else {
-    mascotQuiet();
+    mascotSay("本环节完成 ✅ 请确认内容，回复「继续」进入下一环节，或告诉我要改哪里～");
   }
 }
 

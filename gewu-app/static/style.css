@@ -271,6 +271,11 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 /* 节点流可点击 */
 .n-node{cursor:pointer}
 
+#btnBackup{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+#btnBackup:hover{color:#fff}
+.modal textarea{width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:var(--r-md);font-size:14px;font-family:inherit;resize:vertical;min-height:150px;line-height:1.7;transition:var(--tr)}
+.modal textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(23,58,86,.10)}
+
 /* 项目卡操作按钮 */
 .proj .m .ops{margin-left:auto;display:flex;gap:2px;opacity:0;transition:var(--tr)}
 .proj:hover .m .ops{opacity:1}
@@ -306,7 +311,7 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
   #topbar .lbl{display:none}
   #btnSwitch,#btnExport,#btnLogout{padding:8px 11px}
   /* 输入字号≥16px：阻止 iOS Safari 聚焦自动放大 */
-  #input,.modal input[type=text],.modal #npTitle,.modal #rnTitle{font-size:16px}
+  #input,.modal input[type=text],.modal #npTitle,.modal #rnTitle,.modal textarea{font-size:16px}
   #inputBar{padding:12px 10px calc(12px + env(safe-area-inset-bottom));gap:8px}
   #btnSend{min-width:60px}
   #btnSolo{padding:0 11px}

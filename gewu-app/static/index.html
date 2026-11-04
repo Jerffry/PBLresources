@@ -27,7 +27,7 @@
     </div>
     <button id="btnNew" class="primary">＋ 新建设计项目</button>
     <div id="projectList"></div>
-    <div class="foot"><span class="dot"></span><span id="llmState">检测中…</span><br>格物 · V2.8 本地版</div>
+    <div class="foot"><span class="dot"></span><span id="llmState">检测中…</span><br>格物 · V2.9 本地版 · <span id="btnBackup" title="下载整个数据库备份文件">⬇ 备份数据</span></div>
   </aside>
 
   <main id="main">
@@ -39,6 +39,7 @@
       <div class="spacer"></div>
       <button id="btnSwitch" class="ghost hidden" title="在两条设计主线间切换，自动携带进度与产出摘要">⇄ <span class="lbl">切换模式</span></button>
       <button id="btnExport" class="ghost hidden" title="将方案包按件拆分为md并打包zip下载">📦 <span class="lbl">导出方案包</span></button>
+      <button id="btnFeedback" class="ghost hidden" title="课后粘贴学生表现，格物做SOLO再判定并给出下一轮优化建议">⟲ <span class="lbl">课后反馈</span></button>
       <button id="btnLogout" class="ghost hidden" title="退出登录">⏻</button>
     </header>
 
@@ -152,6 +153,19 @@
     <div class="row">
       <button id="rnCancel" class="ghost">取消</button>
       <button id="rnSave" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalFeedback" class="modal hidden">
+  <div class="card">
+    <h3>⟲ 课后学情反馈</h3>
+    <label>粘贴学生真实表现材料（成果物摘录、课堂观察、发言记录、作业片段…）</label>
+    <textarea id="fbText" rows="9" placeholder="例：A组方案提出'综合航道数据与生态成本，将停泊区外移3海里'；B组能列出渔获与航线两点影响但未建立联系；2名学生仅复述资料原句……"></textarea>
+    <label class="chk"><input type="checkbox" id="fbIncludeGoals" checked> 附带本课对话上下文（SOLO 目标表等）供对照</label>
+    <div class="row">
+      <button id="fbCancel" class="ghost">取消</button>
+      <button id="fbSubmit" class="primary">提交并生成再判定报告</button>
     </div>
   </div>
 </div>

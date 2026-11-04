@@ -19,8 +19,8 @@ from flask import (Flask, Response, jsonify, request, send_file,
                    send_from_directory)
 
 import auth
-from engine_prompts import (GC_NODES, GC_SYSTEM, HANDOFF_TMPL, M_NODES,
-                            M_SYSTEM, MODE_NAME)
+from engine_prompts import (FEEDBACK_SYSTEM, GC_NODES, GC_SYSTEM, HANDOFF_TMPL,
+                            M_NODES, M_SYSTEM, MODE_NAME)
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB = os.environ.get("GEWU_DB") or os.path.join(BASE, "gewu.db")  # GEWU_DB 供测试隔离
@@ -148,6 +148,23 @@ def auth_me():
 def auth_logout():
     return jsonify({"ok": True})  # 客户端清除本地凭据即可
 
+# ---------- 数据备份（教师数据安全） ----------
+@app.get("/api/backup")
+def backup_db():
+    u, err = _require_user()  # _auth_user 已支持 query token（window.open 无法带请求头）
+    if err:
+        return err
+    import tempfile
+    fd, tmp = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    src = sqlite3.connect(DB, timeout=10)
+    out = sqlite3.connect(tmp)
+    with src, out:
+        src.backup(out)  # SQLite backup API：WAL 模式下也产出完整一致快照
+    return send_file(tmp, as_attachment=True,
+                     download_name=f"gewu-backup-{time.strftime('%Y%m%d-%H%M')}.db",
+                     mimetype="application/octet-stream")
+
 # ---------- 项目 CRUD ----------
 @app.get("/")
 def index():
@@ -258,16 +275,27 @@ def add_message(pid):
     return jsonify({"ok": True})
 
 
+FEEDBACK_MARK = "【课后反馈】"
+
+def _trim_context(msgs, keep=10):
+    """长项目上下文裁剪：保留首条（课题）+最近keep条，中间以省略标记替代，控制token与稳定性。"""
+    if len(msgs) <= keep + 2:
+        return msgs
+    return (msgs[:1] + [{"role": "user", "content": "（中间轮次已省略：课题与最近进展完整保留）"}]
+            + msgs[-keep:])
+
 @app.get("/api/projects/<int:pid>/stream")
 def stream(pid):
     p, err = _own_project(pid)
     if err:
         return err
-    msgs = []
     with db() as c:
         rows = c.execute("SELECT role,content FROM messages WHERE project_id=? ORDER BY id", (pid,)).fetchall()
     msgs = [dict(m) for m in rows]
-    system = GC_SYSTEM if p["mode"] == "global" else M_SYSTEM
+    # 课后反馈分流：教师粘贴学生表现时切换到学情分析人格（闭环）
+    is_feedback = msgs and msgs[-1]["role"] == "user" and msgs[-1]["content"].startswith(FEEDBACK_MARK)
+    system = FEEDBACK_SYSTEM if is_feedback else (GC_SYSTEM if p["mode"] == "global" else M_SYSTEM)
+    ctx = _trim_context(msgs)
 
     def gen():
         acc = []
@@ -290,7 +318,7 @@ def stream(pid):
                 url = LLM_BASE + "/chat/completions"
                 payload = {"model": LLM_MODEL, "stream": True, "temperature": 0.6,
                            "messages": [{"role": "system", "content": system}] +
-                                       [{"role": m["role"], "content": m["content"]} for m in msgs]}
+                                       [{"role": m["role"], "content": m["content"]} for m in ctx]}
                 r = requests.post(url, json=payload, stream=True, timeout=300,
                                   headers={"Authorization": f"Bearer {LLM_KEY}",
                                            "Content-Type": "application/json"})
@@ -357,8 +385,36 @@ _DEMO_M = {
 "M5": "🧭 **M5 ｜ 课件问题链方案（五件套收束）**\n\n**问题链**：导入问题→递进问题×2→核心问题→迁移问题（逐条标注四核与SOLO层级）。\n**任务单要点**+**课件结构**（页序+每页问题）。\n评价采集点与M3对齐表逐项核对：✓。\n\n⟲ 依课件实施反馈修订四核与问题链。\n\n【进度：M1已完成｜M2已完成｜M3已完成｜M4已完成｜M5已完成｜问题链＋五件套已交付】",
 }
 
+_DEMO_FEEDBACK = """🧭 **课后学情分析 · SOLO 再判定**（demo 演示，配置 Key 后为真实分析）
+
+### 1. 层级再判定【学情假设】
+| 组别 | 再判定层级 | 材料证据（示例） |
+|---|---|---|
+| A组 | 关联结构 | "综合航道数据与生态成本，方案将停泊区外移3海里" |
+| B组 | 多点结构 | 能列出渔获与航线两点影响，未建立联系 |
+| 个体差异 | 2人单点 | 仅复述资料原句，无自主加工 |
+
+### 2. 目标达成度对照
+| 目标 | 判定 | 依据 |
+|---|---|---|
+| G1 识别类型 | ✅ 达成 | 全组识别完整 |
+| G3 比较立场 | ◐ 部分 | B组停留单方视角 |
+| G5 设计方案 | ◐ 部分 | A组达标，可行性论证薄 |
+
+### 3. 下一轮优化建议
+- 【建议】目标起点：B组从多点层起步，增加"立场比较单"支架；
+- 【建议】资源难度：A组案例增加数据冲突项，逼近关联层加工；
+- 【建议】实训脚本：冲突事件②提前至第6分钟，扩大对抗时间。
+
+⟲ 可基于以上建议开启新一轮设计（同课题进阶或新课题）。
+
+【进度：反馈已完成｜可开启新一轮】"""
+
 def _demo_reply(p, msgs):
     mode = p["mode"]
+    last_user = next((m["content"] for m in reversed(msgs) if m["role"] == "user"), "")
+    if last_user.startswith(FEEDBACK_MARK):
+        return _DEMO_FEEDBACK
     table = _DEMO_GC if mode == "global" else _DEMO_M
     cur = (p["current_node"] or "").strip()
     prefix = "（demo 模式：未配置 LLM_API_KEY，以下为脚本化演示。在 .env 填入 Key 即为真实生成。）\n\n"
@@ -501,5 +557,17 @@ def export_package(pid):
 
 if __name__ == "__main__":
     port = int(os.environ.get("GEWU_PORT", "5010"))
-    print(f"「格物」V2.5 已启动: http://127.0.0.1:{port}  |  LLM: {LLM_MODEL if LLM_OK else 'demo模式'}")
-    app.run(host="127.0.0.1", port=port, threaded=True)
+    host = os.environ.get("GEWU_HOST", "127.0.0.1")
+    print(f"「格物」V2.9 已启动: http://127.0.0.1:{port}  |  LLM: {LLM_MODEL if LLM_OK else 'demo模式'}")
+    if host == "0.0.0.0":
+        import socket
+        try:
+            ips = sorted({i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)}
+                         - {"127.0.0.1"})
+        except Exception:
+            ips = []
+        for ip in ips:
+            print(f"    局域网访问: http://{ip}:{port}  （手机连同一WiFi可直接打开；首次需允许防火墙）")
+        if not ips:
+            print("    （未探测到局域网 IPv4，可用 ipconfig 查看）")
+    app.run(host=host, port=port, threaded=True)

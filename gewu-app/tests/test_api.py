@@ -164,6 +164,38 @@ class GewuAPITest(unittest.TestCase):
         docx_name = next(n for n in z.namelist() if n.endswith(".docx"))
         self.assertGreater(len(z.read(docx_name)), 4000, "docx 应为完整文档（>4KB）")
 
+    def test_17_feedback_flow(self):
+        """课后学情反馈：demo 分流到学情分析脚本，不推进节点。"""
+        tok = self.post("/api/auth/guest").get_json()["token"]
+        pid = self.post("/api/projects", {"title": "课题E", "mode": "theme"}, tok).get_json()["id"]
+        self.post(f"/api/projects/{pid}/messages", {"content": "开始"}, tok)
+        self.get(f"/api/projects/{pid}/stream?token={tok}")  # M1
+        node_before = self.get(f"/api/projects/{pid}", tok).get_json()["project"]["current_node"]
+        self.post(f"/api/projects/{pid}/messages",
+                  {"content": "【课后反馈】A组方案综合航道与生态成本；B组仅列两点无联系"}, tok)
+        self.get(f"/api/projects/{pid}/stream?token={tok}")
+        d = self.get(f"/api/projects/{pid}", tok).get_json()
+        last = d["messages"][-1]["content"]
+        self.assertIn("SOLO 再判定", last)
+        self.assertIn("反馈已完成", last)
+        self.assertEqual(d["project"]["current_node"], node_before, "反馈不应改变设计节点进度")
+
+    def test_18_backup(self):
+        tok = self.post("/api/auth/guest").get_json()["token"]
+        self.post("/api/projects", {"title": "备份验证", "mode": "global"}, tok)
+        r = self.get(f"/api/backup?token={tok}")
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.data[:16].startswith(b"SQLite format 3"), "应为完整 SQLite 备份文件")
+        self.assertEqual(self.get("/api/backup").status_code, 401)
+
+    def test_19_export_query_token(self):
+        """导出经 window.open 无请求头——必须支持 query token（回归：V2.9曾因此401）。"""
+        tok = self.post("/api/auth/guest").get_json()["token"]
+        pid = self.post("/api/projects", {"title": "课题F", "mode": "global"}, tok).get_json()["id"]
+        r = self.c.get(f"/api/projects/{pid}/export?token={tok}")  # 无 Authorization 头
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.c.get(f"/api/projects/{pid}/export?token=bad").status_code, 401)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
