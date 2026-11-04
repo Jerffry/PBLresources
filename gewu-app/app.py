@@ -12,6 +12,7 @@ import re
 import sqlite3
 import time
 import zipfile
+from contextlib import contextmanager
 
 import requests
 from flask import (Flask, Response, jsonify, request, send_file,
@@ -22,7 +23,7 @@ from engine_prompts import (GC_NODES, GC_SYSTEM, HANDOFF_TMPL, M_NODES,
                             M_SYSTEM, MODE_NAME)
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(BASE, "gewu.db")
+DB = os.environ.get("GEWU_DB") or os.path.join(BASE, "gewu.db")  # GEWU_DB 供测试隔离
 
 # ---------- 配置 ----------
 def _load_dotenv():
@@ -43,10 +44,18 @@ LLM_OK = bool(LLM_KEY)
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 # ---------- 数据库 ----------
+@contextmanager
 def db():
-    conn = sqlite3.connect(DB)
+    """连接即用即关：正常退出提交，异常退出回滚（sqlite3 原生 with 只提交不关闭，会泄漏连接）。"""
+    conn = sqlite3.connect(DB, timeout=10)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")    # threaded=True 下读写并发友好，避免 database is locked
+        conn.execute("PRAGMA busy_timeout=5000")
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
 
 def init_db():
     with db() as c:
@@ -270,12 +279,14 @@ def stream(pid):
                         acc.append(delta)
                         yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
             else:
-                # demo 模式：脚本化响应，按节点推进
+                # demo 模式：脚本化响应，按节点推进（测试模式下不做逐字延时）
                 text = _demo_reply(p, msgs)
                 acc.append(text)
+                fast = bool(app.config.get("TESTING"))
                 for chunk in text:
                     yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
-                    time.sleep(0.004)
+                    if not fast:
+                        time.sleep(0.004)
             persist()
             yield "data: [DONE]\n\n"
         except Exception as e:  # 网络异常时保留已生成部分
@@ -351,8 +362,8 @@ def switch_mode(pid):
 
 # ---------- 方案包结构化导出（完善建议#6） ----------
 _PIECE_KEYS = ["教学设计文档", "分层目标表", "评价量规", "资源包", "实训脚本",
-               "课堂智能体配置", "课标分析单", "教材分析", "四核设计单",
-               "工具与实践设计单", "问题链"]
+               "课堂智能体配置", "课标分析单", "教材取舍", "教材分析", "四核设计单",
+               "主题四核", "工具与实践设计单", "问题链"]
 _HEAD_RE = re.compile(r"^(#{2,4})\s*第([一二三四五六1-6])件[：:]?\s*(.*)$|^#{2,4}\s*(.+)$", re.M)
 
 @app.get("/api/projects/<int:pid>/export")

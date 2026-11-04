@@ -7,6 +7,21 @@ const NODES = {
 };
 const MODE_NAME = { global: "🌍 全球胜任力", theme: "🧩 跨学科主题学习" };
 const TOKEN_KEY = "jw_token", USER_KEY = "jw_user";
+
+/* M线四核设计链路（点亮规则对齐部署版：M1→核心内容，M3→目标/问题/任务） */
+const THEME_CORES = [
+  { id: "tc-0", name: "核心内容", desc: "概念·结构·关系", litAt: "M1" },
+  { id: "tc-1", name: "核心目标", desc: "1个目标＋进阶表现", litAt: "M3" },
+  { id: "tc-2", name: "核心问题", desc: "需凭地理证据回答", litAt: "M3" },
+  { id: "tc-3", name: "核心任务", desc: "真实情境·可观察证据", litAt: "M3" },
+];
+/* SOLO四级行为动词白名单（常驻速查） */
+const SOLO_TIERS = [
+  ["单点结构", "识别 · 说出 · 描述 · 列举 · 指认"],
+  ["多点结构", "分析 · 比较 · 说明 · 归纳 · 区分"],
+  ["关联结构", "综合 · 解释 · 评价 · 论证 · 整合"],
+  ["抽象拓展", "设计 · 创造 · 建构 · 提出方案 · 决策"],
+];
 const $ = (id) => document.getElementById(id);
 
 /* ---------- 鉴权 ---------- */
@@ -45,7 +60,16 @@ async function init() {
 
   const h = await (await fetch("/api/health")).json();
   $("llmState").textContent = h.llm ? `引擎：${h.model}` : "引擎：demo 模式（未配Key）";
+  // SOLO 速查表（常驻）
+  $("soloPanel").classList.remove("hidden");
+  $("soloTable").innerHTML = SOLO_TIERS.map(([lv, vv]) =>
+    `<div class="solo-row"><span class="lv"></span><span class="vv"></span></div>`).join("");
+  document.querySelectorAll("#soloTable .solo-row").forEach((row, i) => {
+    row.querySelector(".lv").textContent = SOLO_TIERS[i][0];
+    row.querySelector(".vv").textContent = SOLO_TIERS[i][1];
+  });
   await loadProjects();
+  renderShell();  // 初始渲染（快捷课题chip、SOLO面板等）
   $("btnNew").onclick = () => $("modalNew").classList.remove("hidden");
   $("npCancel").onclick = () => $("modalNew").classList.add("hidden");
   $("npCreate").onclick = createProject;
@@ -126,9 +150,30 @@ function renderShell() {
   $("hintText").textContent = has
     ? "在下方输入课题信息或直接发送，格物将按节点推进。"
     : "新建项目并输入课题名称，格物将从第一个节点开始，逐环节生成教学设计方案。";
+  $("quickChips").classList.toggle("hidden", has);
+  document.querySelectorAll("#quickChips .chip").forEach(c => {
+    c.onclick = () => { $("input").value = c.textContent; $("input").focus(); };
+  });
+  $("corePanel").classList.toggle("hidden", !has || current.mode !== "theme");
   if (has) {
     $("modeBadge").textContent = MODE_NAME[current.mode];
     renderNodes(current.mode, []);
+    renderCores(new Set());
+  }
+}
+
+/* ---------- 四核面板（M线） ---------- */
+function renderCores(doneSet) {
+  const panel = $("corePanel");
+  panel.innerHTML = "";
+  for (const c of THEME_CORES) {
+    const el = document.createElement("div");
+    const lit = doneSet && doneSet.has(c.litAt);
+    el.className = "core-card" + (lit ? " on" : "");
+    el.innerHTML = `<span class="tick">✓</span><b></b><small></small>`;
+    el.querySelector("b").textContent = c.name;
+    el.querySelector("small").textContent = c.desc;
+    panel.appendChild(el);
   }
 }
 
@@ -155,10 +200,13 @@ function renderNodes(mode, doneSet) {
 
 function parseProgress(text) {
   const m = text.match(/【进度[:：]([^】]*)】/);
-  if (!m) return null;
-  const seg = m[1];
-  const done = new Set([...seg.matchAll(/([NM]\d)\s*(?:已完成|待确认)/g)].map(x => x[1]));
-  return done;
+  if (m) {
+    return new Set([...m[1].matchAll(/([NM]\d)\s*(?:已完成|待确认)/g)].map(x => x[1]));
+  }
+  // 兜底：🧭 **N2/M1 ｜ 标题** → 该节点产出已呈现，视为已推进（对齐部署版）
+  const t = text.match(/🧭[^\n]*?([NM]\d)\s*[｜|]/);
+  if (t) return new Set([t[1]]);
+  return null;
 }
 
 function refreshProgress() {
@@ -167,6 +215,12 @@ function refreshProgress() {
   const last = bubbles.length ? bubbles[bubbles.length - 1].textContent : "";
   const done = parseProgress(last);
   renderNodes(current.mode, done);
+  if (current.mode === "theme") {
+    $("corePanel").classList.remove("hidden");
+    renderCores(done || new Set());
+  } else {
+    $("corePanel").classList.add("hidden");
+  }
 }
 
 /* ---------- 消息渲染（轻量 Markdown + 徽章 + 进度行） ---------- */
@@ -176,6 +230,7 @@ function renderMD(text) {
   let t = esc(text);
   t = t.replace(/【进度[:：][^】]*】/g, (m) => `<span class="prog-line">${m}</span>`);
   t = t.replace(/【(依据|待核|建议|学情假设)】/g, '<span class="b-$1">$1</span>');
+  t = t.replace(/(⟲[^\n<]*)/g, '<span class="strategy-loop">$1</span>');
   t = t.replace(/```([\s\S]*?)```/g, (_, c) => `<pre><code>${c}</code></pre>`);
   t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
   t = t.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
@@ -248,16 +303,25 @@ function streamOnce() {
   $("btnSend").disabled = true;
   const bubble = addMessage("assistant", "…", { streaming: true });
   let full = "";
+  // 渲染节流：流式期间高频分片只记录文本，重渲染合并到120ms一拍（对齐部署版做法）
+  let dirty = false, timer = null;
+  const paint = () => {
+    if (!dirty) return;
+    dirty = false;
+    bubble.innerHTML = renderMD(full);
+    $("chat").scrollTop = $("chat").scrollHeight;
+  };
+  timer = setInterval(paint, 120);
   es = new EventSource(`/api/projects/${current.id}/stream?token=${encodeURIComponent(token())}`);
   es.onmessage = (ev) => {
-    if (ev.data === "[DONE]") { es.close(); finish(full, bubble); return; }
+    if (ev.data === "[DONE]") { es.close(); clearInterval(timer); paint(); finish(full, bubble); return; }
     try {
       const d = JSON.parse(ev.data);
-      if (d.delta) { full += d.delta; bubble.innerHTML = renderMD(full); $("chat").scrollTop = $("chat").scrollHeight; }
-      if (d.error) { full += `\n\n⚠️ ${d.error}`; bubble.innerHTML = renderMD(full); }
+      if (d.delta) { full += d.delta; dirty = true; }
+      if (d.error) { full += `\n\n⚠️ ${d.error}`; dirty = true; }
     } catch (_) {}
   };
-  es.onerror = () => { es.close(); finish(full, bubble); };
+  es.onerror = () => { es.close(); clearInterval(timer); paint(); finish(full, bubble); };
 }
 
 function finish(full, bubble) {
@@ -290,6 +354,8 @@ async function switchMode() {
   current.mode = to;
   $("modeBadge").textContent = MODE_NAME[to];
   renderNodes(to, null);
+  $("corePanel").classList.toggle("hidden", to !== "theme");
+  if (to === "theme") renderCores(new Set());
   if (d.handoff) { addMessage("user", d.handoff); streamOnce(); }
   loadProjects();
 }

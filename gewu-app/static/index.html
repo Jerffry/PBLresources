@@ -28,11 +28,22 @@
     </header>
 
     <div id="nodeFlow" class="hidden"></div>
+    <div id="corePanel" class="hidden"></div>
+    <details id="soloPanel" class="hidden">
+      <summary>SOLO 分层速查（四级行为动词白名单）</summary>
+      <div id="soloTable"></div>
+    </details>
 
     <div id="chat" class="empty">
       <div id="emptyHint">
         <div class="big">格物致知 · 物格而后知至</div>
         <p id="hintText">新建项目并输入课题名称，格物将从第一个节点开始，逐环节生成教学设计方案。</p>
+        <div id="quickChips" class="hidden">
+          <button class="chip">海洋空间资源开发与国家安全</button>
+          <button class="chip">气候变化与国家安全</button>
+          <button class="chip">黄河流域生态保护</button>
+          <button class="chip">产业转型地区的结构优化</button>
+        </div>
       </div>
     </div>
 

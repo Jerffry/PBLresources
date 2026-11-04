@@ -13,6 +13,7 @@ import os
 import secrets
 import sqlite3
 import time
+from contextlib import contextmanager
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 SECRET_FILE = os.path.join(BASE, ".secret")
@@ -79,10 +80,15 @@ def parse_token(token: str):
 
 
 # ---------- 用户 ----------
+@contextmanager
 def db():
-    conn = sqlite3.connect(os.path.join(BASE, "gewu.db"))
+    conn = sqlite3.connect(os.environ.get("GEWU_DB") or os.path.join(BASE, "gewu.db"), timeout=10)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def create_guest() -> dict:
