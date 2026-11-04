@@ -233,17 +233,19 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 #resumeBox input{flex:1;padding:9px 12px;border:1.5px solid var(--line);border-radius:var(--r-md);font-size:12.5px}
 #myCode{margin-top:11px;background:var(--amber-bg);border:1px dashed var(--gold);border-radius:var(--r-md);padding:9px;font-size:12px;color:var(--amber)}
 
-/* ---------- 吉样物「格物」· 学者地球小人 ---------- */
-#mascot{position:fixed;right:26px;bottom:126px;width:80px;z-index:20;cursor:pointer;user-select:none;animation:mascotFloat 4s ease-in-out infinite;transition:transform .25s cubic-bezier(.34,1.5,.64,1)}
+/* ---------- 吉样物「格物」· 学生地球小人（可拖拽） ---------- */
+#mascot{position:fixed;right:26px;bottom:126px;width:80px;z-index:20;cursor:grab;user-select:none;touch-action:none;animation:mascotFloat 4s ease-in-out infinite;transition:transform .25s cubic-bezier(.34,1.5,.64,1)}
 #mascot:hover{transform:scale(1.08)}
 #mascot:active{transform:scale(.96)}
+#mascot.dragging{cursor:grabbing;animation:none;transform:scale(1.1);transition:transform .12s}
+#mascot.dragging #mascotSvg{filter:drop-shadow(0 14px 22px rgba(14,39,64,.34))}
 #mascotSvg{width:100%;display:block;filter:drop-shadow(0 6px 14px rgba(14,39,64,.28))}
 @keyframes mascotFloat{0%,100%{translate:0 0}50%{translate:0 -7px}}
 /* 眨眼 */
 .m-eye{animation:mascotBlink 4.6s infinite;transform-box:fill-box;transform-origin:center}
 .m-eye + .m-eye{animation-delay:.05s}
 @keyframes mascotBlink{0%,91%,100%{transform:scaleY(1)}94%{transform:scaleY(.06)}}
-/* 悬停挥手（左臂） */
+/* 悬停挥手（左臂组：袖+手一起摆） */
 #mascot:hover .m-arm-l{animation:mascotWave .9s ease-in-out infinite;transform-box:fill-box;transform-origin:top right}
 @keyframes mascotWave{0%,100%{transform:rotate(0)}50%{transform:rotate(-24deg)}}
 /* 思考态：整体轻微摇摆 */

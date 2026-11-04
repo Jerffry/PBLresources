@@ -88,6 +88,70 @@ function mascotQuiet() {
   $("mascot").classList.remove("thinking");
 }
 
+/* ---------- 吉样物拖拽：指针拖动 / 视口边界钳制 / 位置记忆 / 与点击区分 ---------- */
+let mascotJustDragged = false;
+function initMascotDrag() {
+  const el = $("mascot");
+  let sx = 0, sy = 0, ox = 0, oy = 0, moved = false, dragging = false, activePid = null;
+
+  // 恢复上次摆放位置（换会话延续）
+  try {
+    const lx = parseFloat(localStorage.getItem("mascot_x"));
+    const ly = parseFloat(localStorage.getItem("mascot_y"));
+    if (!isNaN(lx) && !isNaN(ly)) {
+      const r = el.getBoundingClientRect();
+      const cx = Math.min(Math.max(lx, 8), innerWidth - r.width - 8);
+      const cy = Math.min(Math.max(ly, 8), innerHeight - r.height - 8);
+      el.style.left = cx + "px";
+      el.style.top = cy + "px";
+      el.style.right = "auto";
+      el.style.bottom = "auto";
+    }
+  } catch (_) {}
+
+  el.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    activePid = e.pointerId;
+    sx = e.clientX; sy = e.clientY;
+    const r = el.getBoundingClientRect();
+    ox = r.left; oy = r.top;
+    moved = false; dragging = false;
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (activePid === null || e.pointerId !== activePid) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.hypot(dx, dy) > 6) {
+      moved = true; dragging = true;
+      el.classList.add("dragging");
+      el.style.right = "auto"; el.style.bottom = "auto";
+      $("mascotBubble").classList.add("hidden"); // 拖动时收起气泡
+    }
+    if (dragging) {
+      const w = el.offsetWidth, h = el.offsetHeight;
+      el.style.left = Math.min(Math.max(ox + dx, 8), innerWidth - w - 8) + "px";
+      el.style.top = Math.min(Math.max(oy + dy, 8), innerHeight - h - 8) + "px";
+    }
+  });
+  const end = (e) => {
+    if (activePid === null || e.pointerId !== activePid) return;
+    activePid = null;
+    try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (dragging) {
+      el.classList.remove("dragging");
+      mascotJustDragged = true;
+      setTimeout(() => (mascotJustDragged = false), 50);
+      try {
+        localStorage.setItem("mascot_x", el.style.left);
+        localStorage.setItem("mascot_y", el.style.top);
+      } catch (_) {}
+    }
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+
 let projects = [];
 let current = null;   // {id,title,mode,current_node}
 let streaming = false;
@@ -150,10 +214,12 @@ async function init() {
     $("scrollFab").classList.toggle("show", !nearBottom());
   });
   $("scrollFab").onclick = () => scrollBottom(true);
-  // 吉样物：问候 + 点击掉落小贴士
+  // 吉样物：问候 + 点击掉落小贴士（拖动后不误触发）
   $("mascot").onclick = () => {
+    if (mascotJustDragged) return;
     mascotSay(MASCOT_TIPS[Math.floor(Math.random() * MASCOT_TIPS.length)], { hold: 8000 });
   };
+  initMascotDrag();
   setTimeout(() => mascotSay("你好，我是格物 🌏 新建一个项目，或点下面的示例课题开始设计吧！", { hold: 9000 }), 900);
 }
 

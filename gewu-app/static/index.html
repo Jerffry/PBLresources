@@ -66,22 +66,34 @@
       <div id="soloTable"></div>
     </div>
 
-    <!-- 格物 · 学者地球小人（状态感知吉样物） -->
-    <div id="mascot" title="格物 · 点我看看小贴士">
+    <!-- 格物 · 学生地球小人（可拖拽，状态感知吉样物） -->
+    <div id="mascot" title="格物 · 拖我到你喜欢的位置，点我看小贴士">
       <div id="mascotBubble" class="hidden"><span id="mascotText"></span></div>
       <svg id="mascotSvg" viewBox="0 0 120 132" aria-label="格物">
-        <!-- 左臂（悬停挥手） -->
-        <path class="m-arm-l" d="M38 96 Q26 100 27 110" stroke="#173A56" stroke-width="7" stroke-linecap="round" fill="none"/>
-        <!-- 右臂 -->
-        <path class="m-arm-r" d="M82 96 Q94 100 93 110" stroke="#173A56" stroke-width="7" stroke-linecap="round" fill="none"/>
-        <!-- 脚 -->
-        <ellipse cx="48" cy="123" rx="7" ry="4" fill="#0B1F33"/>
-        <ellipse cx="72" cy="123" rx="7" ry="4" fill="#0B1F33"/>
-        <!-- 长袍身体 -->
-        <path d="M40 86 Q60 78 80 86 L87 116 Q60 125 33 116 Z" fill="#173A56"/>
-        <path d="M40 86 Q60 78 80 86 L81 93 Q60 86 39 93 Z" fill="#0E2740"/>
-        <!-- 衣领金色饰带 -->
-        <path d="M52 84 L60 94 L68 84" stroke="#C9A24B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- 脚：小白鞋 -->
+        <ellipse cx="47" cy="122" rx="8" ry="4.6" fill="#FFFFFF" stroke="#173A56" stroke-width="1.6"/>
+        <ellipse cx="73" cy="122" rx="8" ry="4.6" fill="#FFFFFF" stroke="#173A56" stroke-width="1.6"/>
+        <!-- 身体：浅蓝学生卫衣 -->
+        <path d="M40 86 Q60 78 80 86 L87 114 Q60 123 33 114 Z" fill="#7EB1DF"/>
+        <path d="M36 109 Q60 117 84 109 L87 114 Q60 123 33 114 Z" fill="#5D8FC4"/>
+        <!-- 白衬衫领 -->
+        <path d="M52 83 L60 93 L55 81 Z" fill="#FFFFFF"/>
+        <path d="M68 83 L60 93 L65 81 Z" fill="#FFFFFF"/>
+        <!-- 怀里抱的书（金色封面+白色书页） -->
+        <g transform="rotate(-5 60 104)">
+          <path d="M44 96 Q60 89 76 96 L76 112 Q60 105 44 112 Z" fill="#C9A24B"/>
+          <path d="M48 97 Q60 92 72 97 L72 110 Q60 105 48 110 Z" fill="#FFFFFF"/>
+          <line x1="60" y1="94" x2="60" y2="110" stroke="#D8CBA8" stroke-width="1.6"/>
+        </g>
+        <!-- 手臂：袖口环抱书本（悬停挥手） -->
+        <g class="m-arm-l">
+          <path d="M39 92 Q30 98 43 100" stroke="#6FA0D6" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <circle cx="45" cy="100" r="3.8" fill="#FFFFFF"/>
+        </g>
+        <g class="m-arm-r">
+          <path d="M81 92 Q90 98 77 100" stroke="#6FA0D6" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <circle cx="75" cy="100" r="3.8" fill="#FFFFFF"/>
+        </g>
         <!-- 地球脑袋 -->
         <circle cx="60" cy="56" r="31" fill="#1A4F8A"/>
         <ellipse cx="60" cy="56" rx="11" ry="31" fill="none" stroke="#FFFFFF" stroke-width="1.6" opacity=".65"/>
@@ -103,10 +115,6 @@
         <circle cx="78" cy="63" r="3.4" fill="#E8927C" opacity=".55"/>
         <!-- 微笑 -->
         <path d="M53 64 Q60 70 67 64" stroke="#FFFFFF" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-        <!-- 儒生方巾 -->
-        <path d="M33 32 Q60 8 87 32 L84 41 Q60 34 36 41 Z" fill="#0B1F33"/>
-        <rect x="37" y="37" width="46" height="6" rx="3" fill="#C9A24B"/>
-        <circle cx="60" cy="21" r="3.4" fill="#C9A24B"/>
       </svg>
     </div>
 
