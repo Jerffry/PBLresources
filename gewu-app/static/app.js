@@ -150,6 +150,19 @@ function initMascotDrag() {
   };
   el.addEventListener("pointerup", end);
   el.addEventListener("pointercancel", end);
+  // 视口尺寸变化时把吉样物钳回屏幕内（如旋转屏幕、缩放窗口）
+  window.addEventListener("resize", () => {
+    if (el.style.left === "") return;  // 仍在默认位（right/bottom 定位）则无需处理
+    const r = el.getBoundingClientRect();
+    if (r.left < 8 || r.top < 8 || r.right > innerWidth - 8 || r.bottom > innerHeight - 8) {
+      el.style.left = Math.min(Math.max(r.left, 8), Math.max(8, innerWidth - r.width - 8)) + "px";
+      el.style.top = Math.min(Math.max(r.top, 8), Math.max(8, innerHeight - r.height - 8)) + "px";
+      try {
+        localStorage.setItem("mascot_x", el.style.left);
+        localStorage.setItem("mascot_y", el.style.top);
+      } catch (_) {}
+    }
+  });
 }
 
 let projects = [];
@@ -196,7 +209,14 @@ async function init() {
   $("input").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
-  $("btnMenu").onclick = () => $("sidebar").classList.toggle("open");
+  $("btnMenu").onclick = () => {
+    const open = $("sidebar").classList.toggle("open");
+    $("scrim").classList.toggle("hidden", !open);  // 移动端抽屉遮罩
+  };
+  $("scrim").onclick = () => {
+    $("sidebar").classList.remove("open");
+    $("scrim").classList.add("hidden");
+  };
   $("btnExport").onclick = () => {
     if (!current) return;
     mascotSay("zip 开始下载：方案按件拆分为 md，附完整对话记录 📦");
@@ -471,11 +491,11 @@ function renderMD(text) {
     if (tbl.length >= 2) {
       const rows = tbl.filter(l => !/^\|[\s:|-]+\|$/.test(l));
       const cells = rows.map(r => r.split("|").slice(1, -1).map(c => c.trim()));
-      let html = "<table>";
+      let html = '<div class="tbl-wrap"><table>';
       cells.forEach((row, i) => {
         html += "<tr>" + row.map(c => `<${i === 0 ? "th" : "td"}>${c}</td>`.replace("td>", i === 0 ? "th>" : "td>")).join("") + "</tr>";
       });
-      out.push(html + "</table>");
+      out.push(html + "</table></div>");  // 滚动容器：长表格窄屏不撑破布局
     } else if (tbl.length) out.push(tbl.join("<br>"));
     tbl = [];
   };
