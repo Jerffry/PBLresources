@@ -38,15 +38,11 @@
       <div class="spacer"></div>
       <button id="btnSwitch" class="ghost hidden" title="在两条设计主线间切换，自动携带进度与产出摘要">⇄ 切换模式</button>
       <button id="btnExport" class="ghost hidden" title="将方案包按件拆分为md并打包zip下载">📦 导出方案包</button>
-      <button id="btnLogout" class="ghost hidden">退出</button>
+      <button id="btnLogout" class="ghost hidden" title="退出登录">⏻</button>
     </header>
 
     <div id="nodeFlow" class="hidden"></div>
     <div id="corePanel" class="hidden"></div>
-    <details id="soloPanel" class="hidden">
-      <summary>SOLO 分层速查（四级行为动词白名单）</summary>
-      <div id="soloTable"></div>
-    </details>
 
     <div id="chat" class="empty">
       <div id="emptyHint">
@@ -63,6 +59,12 @@
     </div>
 
     <button id="scrollFab" title="回到底部">↓</button>
+
+    <!-- SOLO 速查：情境化弹出层（撰写目标时在输入区调出） -->
+    <div id="soloPop" class="hidden">
+      <div class="solo-head">SOLO 分层速查 · 行为动词白名单</div>
+      <div id="soloTable"></div>
+    </div>
 
     <!-- 格物 · 学者地球小人（状态感知吉样物） -->
     <div id="mascot" title="格物 · 点我看看小贴士">
@@ -109,6 +111,7 @@
     </div>
 
     <footer id="inputBar" class="hidden">
+      <button id="btnSolo" class="ghost" title="SOLO 分层速查（四级行为动词白名单）">📐</button>
       <textarea id="input" rows="1" placeholder="输入课题名称，或回复当前节点…（Enter发送，Shift+Enter换行）"></textarea>
       <button id="btnSend" class="primary">发送</button>
     </footer>

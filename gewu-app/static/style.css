@@ -5,7 +5,8 @@
 :root{
   --navy:#173A56; --navy-deep:#0E2740; --navy-ink:#0B1F33;
   --bg:#F6F4EF; --card:#FFFFFF; --line:#E4DFD4; --line-soft:#EEEAE0;
-  --muted:#5D6F82; --muted-2:#8A97A6;
+  --muted:#5D6F82;            /* 正文级次要文字：白底 5.17:1 / 米底 4.70:1，AA 达标 */
+  --muted-2:#8A97A6;          /* 仅作装饰性元素（分隔符/图形），不用于文字 */
   --amber:#B05400; --amber-bg:#FAF3E4;
   --green:#2E7D52; --green-bg:#EAF3ED;
   --red:#B3261E; --red-bg:#FBEDEB;
@@ -16,13 +17,23 @@
   --sh-2:0 4px 14px rgba(14,39,64,.10);
   --sh-3:0 12px 32px rgba(14,39,64,.16);
   --tr:.22s cubic-bezier(.4,0,.2,1);
+  /* 阅读行宽科学约束：正文列恒定 ≤780px（≈50汉字/行，接近35-45最佳区间），
+     两侧留白随视口自适应展开 */
+  --measure:780px;
+  --pad-x:max(8%, calc((100% - var(--measure)) / 2));
   font-size:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--navy);-webkit-font-smoothing:antialiased}
+body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;background:#EDE9E0;color:var(--navy);-webkit-font-smoothing:antialiased}
 button{font-family:inherit}
 .hidden{display:none!important}
+
+/* 动效可及性：尊重系统"减少动态效果"设置（前庭障碍用户） */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  #chat{scroll-behavior:auto}
+}
 
 /* ---------- 滚动条 ---------- */
 ::-webkit-scrollbar{width:9px;height:9px}
@@ -31,12 +42,13 @@ button{font-family:inherit}
 ::-webkit-scrollbar-track{background:transparent}
 #sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border:2px solid transparent;background-clip:content-box}
 
-/* ---------- 焦点可达性 ---------- */
+/* ---------- 焦点可达性（深色元素用金色描边，浅色用藏青，确保键盘导航始终可见） ---------- */
 :focus-visible{outline:2px solid var(--navy);outline-offset:2px;border-radius:4px}
+button.primary:focus-visible,#scrollFab:focus-visible,.n-node.done:focus-visible{outline-color:var(--gold)}
 
-/* ---------- 布局 ---------- */
-#app{display:flex;height:100vh}
-#main{flex:1;display:flex;flex-direction:column;min-width:0}
+/* ---------- 布局：超宽屏限宽居中（1720px），两侧留呼吸背景，防行宽失控 ---------- */
+#app{display:flex;height:100vh;max-width:1720px;margin:0 auto;background:var(--bg);box-shadow:0 0 48px rgba(14,39,64,.10)}
+#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 
 /* ---------- 侧栏 ---------- */
 #sidebar{width:248px;background:linear-gradient(180deg,var(--navy) 0%,var(--navy-deep) 100%);color:#fff;display:flex;flex-direction:column;padding:18px 14px 12px;flex-shrink:0;position:relative;z-index:30}
@@ -75,7 +87,7 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 
 /* ---------- 节点流 ---------- */
 #nodeFlow{display:flex;align-items:center;gap:2px;overflow-x:auto;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
-.n-node{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--r-full);border:1px solid var(--line);font-size:12px;white-space:nowrap;color:var(--muted-2);background:var(--bg);transition:var(--tr);flex-shrink:0}
+.n-node{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--r-full);border:1px solid var(--line);font-size:12px;white-space:nowrap;color:var(--muted);background:var(--bg);transition:var(--tr);flex-shrink:0}
 .n-node.done{background:var(--navy);color:#fff;border-color:var(--navy)}
 .n-node.active{border-color:var(--navy);color:var(--navy);font-weight:700;box-shadow:0 0 0 3px rgba(23,58,86,.12);animation:pulse 2s infinite}
 .n-sep{color:var(--line);font-size:11px;flex-shrink:0;user-select:none}
@@ -84,27 +96,25 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 
 /* ---------- 四核面板（M线） ---------- */
 #corePanel{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
-.core-card{border:1px solid var(--line-soft);border-radius:var(--r-md);padding:10px 13px;background:var(--bg);opacity:.5;transition:var(--tr);position:relative}
+.core-card{border:1px solid var(--line-soft);border-radius:var(--r-md);padding:10px 13px;background:var(--bg);opacity:.66;transition:var(--tr);position:relative}
 .core-card.on{opacity:1;border-color:var(--navy);background:#fff;box-shadow:var(--sh-1);transform:translateY(-1px)}
 .core-card b{display:block;font-size:13px;color:var(--navy)}
 .core-card small{color:var(--muted);font-size:11px;display:block;margin-top:3px}
 .core-card .tick{position:absolute;top:8px;right:10px;font-size:12px;color:var(--green);opacity:0;transition:var(--tr)}
 .core-card.on .tick{opacity:1}
 
-/* ---------- SOLO速查 ---------- */
-#soloPanel{margin:10px 20px 0;border:1px solid var(--line-soft);border-radius:var(--r-md);background:var(--card);padding:5px 14px;box-shadow:var(--sh-1)}
-#soloPanel summary{cursor:pointer;font-size:12px;color:var(--muted);padding:6px 0;user-select:none;list-style:none;display:flex;align-items:center;gap:6px}
-#soloPanel summary::before{content:"▸";transition:var(--tr);color:var(--muted-2)}
-#soloPanel[open] summary::before{transform:rotate(90deg)}
-#soloPanel summary::-webkit-details-marker{display:none}
-#soloTable{padding:2px 0 10px}
-#soloTable .solo-row{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
+/* ---------- SOLO速查（情境化弹出层：撰写目标时在输入区调出，不占用前置纵向空间） ---------- */
+#soloPop{position:absolute;left:var(--pad-x);bottom:92px;width:360px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-3);z-index:25;animation:mascotPop .25s cubic-bezier(.34,1.4,.64,1);padding:12px 15px}
+#soloPop .solo-head{font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+#soloPop .solo-head::before{content:"📐";font-weight:400}
+#soloTable .solo-row{display:flex;gap:10px;align-items:baseline;padding:4.5px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
 #soloTable .solo-row:last-child{border-bottom:0}
 #soloTable .lv{flex:0 0 62px;font-weight:700;color:var(--navy)}
 #soloTable .vv{color:var(--muted)}
+#btnSolo{height:42px;padding:0 13px;font-size:15px}
 
-/* ---------- 聊天 ---------- */
-#chat{flex:1;overflow-y:auto;padding:22px 8% 14px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+/* ---------- 聊天（行宽约束：正文列 ≤780px，≈50汉字/行） ---------- */
+#chat{flex:1;overflow-y:auto;padding:22px var(--pad-x) 14px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
 #chat.empty{justify-content:center;align-items:center;text-align:center}
 #emptyHint .big{font-size:24px;font-weight:700;letter-spacing:5px;margin-bottom:6px;color:var(--navy)}
 #emptyHint .globe{width:74px;height:74px;margin:0 auto 14px;display:block;opacity:.9;animation:float 4s ease-in-out infinite}
@@ -113,7 +123,7 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 
 .msg{max-width:100%;display:flex;flex-direction:column;animation:rise .3s ease}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.msg .who{font-size:11px;color:var(--muted-2);margin-bottom:4px;padding:0 4px}
+.msg .who{font-size:11px;color:var(--muted);margin-bottom:4px;padding:0 4px}
 .msg .bubble{padding:13px 17px;border-radius:var(--r-lg);line-height:1.8;font-size:14px;overflow-wrap:break-word}
 .msg.user{align-self:flex-end;max-width:78%}
 .msg.user .who{text-align:right}
@@ -151,14 +161,15 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 .chip{background:var(--card);border:1px solid var(--line);border-radius:var(--r-full);padding:7px 16px;font-size:12.5px;color:var(--navy);cursor:pointer;transition:var(--tr);box-shadow:var(--sh-1)}
 .chip:hover{border-color:var(--navy);background:var(--bg);transform:translateY(-1px);box-shadow:var(--sh-2)}
 
-/* ---------- 输入区 ---------- */
-#inputBar{display:flex;gap:10px;align-items:flex-end;padding:14px 8% 16px;border-top:1px solid var(--line);background:rgba(255,255,255,.88);backdrop-filter:blur(8px)}
+/* ---------- 输入区（与正文列同宽对齐，格式塔连续性） ---------- */
+#inputBar{display:flex;gap:10px;align-items:flex-end;padding:14px var(--pad-x) 16px;border-top:1px solid var(--line);background:rgba(255,255,255,.88);backdrop-filter:blur(8px)}
 #input{flex:1;resize:none;padding:11px 15px;border:1.5px solid var(--line);border-radius:var(--r-md);font-size:14px;font-family:inherit;max-height:160px;line-height:1.6;background:#fff;transition:var(--tr)}
 #input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(23,58,86,.10)}
+#input::placeholder{color:#98A4B0}
 #btnSend{min-width:82px;height:42px;font-size:14px}
 
 /* 滚动到底 FAB */
-#scrollFab{position:absolute;right:calc(8% + 18px);bottom:110px;width:38px;height:38px;border-radius:50%;background:var(--navy);color:#fff;font-size:15px;box-shadow:var(--sh-2);padding:0;z-index:5;opacity:0;pointer-events:none;transform:translateY(8px);transition:var(--tr)}
+#scrollFab{position:absolute;right:calc(var(--pad-x) + 18px);bottom:110px;width:38px;height:38px;border-radius:50%;background:var(--navy);color:#fff;font-size:15px;box-shadow:var(--sh-2);padding:0;z-index:5;opacity:0;pointer-events:none;transform:translateY(8px);transition:var(--tr)}
 #scrollFab.show{opacity:1;pointer-events:auto;transform:none}
 
 /* ---------- 弹窗 ---------- */
@@ -223,7 +234,7 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 #myCode{margin-top:11px;background:var(--amber-bg);border:1px dashed var(--gold);border-radius:var(--r-md);padding:9px;font-size:12px;color:var(--amber)}
 
 /* ---------- 吉样物「格物」· 学者地球小人 ---------- */
-#mascot{position:fixed;right:26px;bottom:126px;width:88px;z-index:20;cursor:pointer;user-select:none;animation:mascotFloat 4s ease-in-out infinite;transition:transform .25s cubic-bezier(.34,1.5,.64,1)}
+#mascot{position:fixed;right:26px;bottom:126px;width:80px;z-index:20;cursor:pointer;user-select:none;animation:mascotFloat 4s ease-in-out infinite;transition:transform .25s cubic-bezier(.34,1.5,.64,1)}
 #mascot:hover{transform:scale(1.08)}
 #mascot:active{transform:scale(.96)}
 #mascotSvg{width:100%;display:block;filter:drop-shadow(0 6px 14px rgba(14,39,64,.28))}
@@ -254,7 +265,8 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
   #btnMenu{display:inline-block}
   #chat,#inputBar{padding-left:16px;padding-right:16px}
   #chat{padding-top:14px}
-  #nodeFlow,#corePanel,#soloPanel{margin-left:12px;margin-right:12px;padding-left:10px;padding-right:10px}
+  #nodeFlow,#corePanel{margin-left:12px;margin-right:12px;padding-left:10px;padding-right:10px}
+  #soloPop{left:16px;right:16px;width:auto}
   #scrollFab{right:20px;bottom:104px}
   #mascot{width:62px;right:12px;bottom:158px}
   #mascotBubble{width:180px;right:0}

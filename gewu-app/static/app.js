@@ -110,13 +110,18 @@ async function init() {
 
   const h = await (await fetch("/api/health")).json();
   $("llmState").textContent = h.llm ? `引擎：${h.model}` : "引擎：demo 模式（未配Key）";
-  // SOLO 速查表（常驻）
-  $("soloPanel").classList.remove("hidden");
+  // SOLO 速查：情境化弹出层（输入区旁调出，撰写目标时随手可查）
   $("soloTable").innerHTML = SOLO_TIERS.map(([lv, vv]) =>
     `<div class="solo-row"><span class="lv"></span><span class="vv"></span></div>`).join("");
   document.querySelectorAll("#soloTable .solo-row").forEach((row, i) => {
     row.querySelector(".lv").textContent = SOLO_TIERS[i][0];
     row.querySelector(".vv").textContent = SOLO_TIERS[i][1];
+  });
+  $("btnSolo").onclick = () => $("soloPop").classList.toggle("hidden");
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#soloPop") && !e.target.closest("#btnSolo")) {
+      $("soloPop").classList.add("hidden");
+    }
   });
   await loadProjects();
   renderShell();  // 初始渲染（快捷课题chip、SOLO面板等）
