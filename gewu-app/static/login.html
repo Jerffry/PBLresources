@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 · 格物</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+<div class="login-wrap">
+  <div class="login-hero">
+    <div class="logo-big">格物</div>
+    <div class="hero-sub">跨学科主题学习设计器</div>
+    <div class="hero-tip">生成式人工智能视角下 · 高中地理全球胜任力教学设计</div>
+    <ul class="hero-list">
+      <li>🧭 六节点工作流引导，沿论文五步策略闭环推进</li>
+      <li>🎯 全球胜任力四维 × 地理核心素养锚定培养内容</li>
+      <li>🗂️ 多课题项目管理，对话进度本地保存</li>
+    </ul>
+  </div>
+
+  <div class="login-card">
+    <div class="tabs">
+      <button class="tab active" data-tab="login">登录</button>
+      <button class="tab" data-tab="reg">注册</button>
+    </div>
+
+    <form id="form-login" class="pane active">
+      <label>用户名</label>
+      <input id="lgUser" autocomplete="username" placeholder="注册的用户名">
+      <label>密码</label>
+      <input id="lgPass" type="password" autocomplete="current-password" placeholder="至少6位">
+      <button type="submit" class="primary wide">登 录</button>
+    </form>
+
+    <form id="form-reg" class="pane">
+      <label>用户名</label>
+      <input id="rgUser" autocomplete="username" placeholder="给自己起个名字">
+      <label>密码</label>
+      <input id="rgPass" type="password" placeholder="至少 6 位">
+      <label>确认密码</label>
+      <input id="rgPass2" type="password" placeholder="再输入一次">
+      <label class="chk"><input type="checkbox" id="rgKeep" checked> 我是访客，注册后保留已有项目</label>
+      <button type="submit" class="primary wide">注 册</button>
+    </form>
+
+    <div class="divider">或</div>
+    <button id="guestBtn" class="ghost wide">🚀 访客免登录，直接进入</button>
+    <div class="resume">
+      <span id="resumeToggle">— 换设备找回访客数据 —</span>
+      <div id="resumeBox" class="hidden">
+        <input id="resumeCode" placeholder="请粘贴访客恢复码">
+        <button id="resumeBtn" class="ghost">找回</button>
+      </div>
+      <div id="myCode" class="hidden"></div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const TOKEN_KEY = "jw_token", USER_KEY = "jw_user";
+const $ = (id) => document.getElementById(id);
+
+function saveAuth(token, user) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  location.href = "/";
+}
+async function postJSON(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "请求失败");
+  return d;
+}
+function toast(msg) { alert(msg); }
+
+/* Tabs */
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+  document.querySelectorAll(".pane").forEach(p => p.classList.toggle("active", p.id === "form-" + t.dataset.tab));
+});
+
+/* 访客一键进入 */
+$("guestBtn").onclick = async () => {
+  const btn = $("guestBtn");
+  btn.disabled = true; btn.textContent = "正在为您准备工位…";
+  try {
+    const d = await postJSON("/api/auth/guest");
+    saveAuth(d.token, d.user);
+  } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = "🚀 访客免登录，直接进入"; }
+};
+
+/* 登录 */
+$("form-login").onsubmit = async (e) => {
+  e.preventDefault();
+  try { const d = await postJSON("/api/auth/login", { username: $("lgUser").value.trim(), password: $("lgPass").value }); saveAuth(d.token, d.user); }
+  catch (err) { toast(err.message); }
+};
+
+/* 注册（可带访客token升级） */
+$("form-reg").onsubmit = async (e) => {
+  e.preventDefault();
+  if ($("rgPass").value !== $("rgPass2").value) return toast("两次输入的密码不一致");
+  if ($("rgPass").value.length < 6) return toast("密码至少 6 位");
+  const body = { username: $("rgUser").value.trim(), password: $("rgPass").value };
+  if ($("rgKeep").checked) body.guest_token = localStorage.getItem(TOKEN_KEY) || "";
+  try { const d = await postJSON("/api/auth/register", body); saveAuth(d.token, d.user); }
+  catch (err) { toast(err.message); }
+};
+
+/* 恢复码找回 */
+$("resumeToggle").onclick = () => $("resumeBox").classList.toggle("hidden");
+$("resumeBtn").onclick = async () => {
+  const code = $("resumeCode").value.trim();
+  if (!code) return toast("请粘贴访客恢复码");
+  try { const d = await postJSON("/api/auth/guest/resume", { code }); saveAuth(d.token, d.user); }
+  catch (err) { toast(err.message); }
+};
+
+/* 已是访客：提示自己的恢复码 */
+const u = JSON.parse(localStorage.getItem(USER_KEY) || "null");
+if (u && u.recovery_code) {
+  $("myCode").classList.remove("hidden");
+  $("myCode").textContent = `您的访客恢复码：${u.recovery_code}（换设备时用它找回）`;
+}
+</script>
+</body>
+</html>

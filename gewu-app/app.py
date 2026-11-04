@@ -17,6 +17,7 @@ import requests
 from flask import (Flask, Response, jsonify, request, send_file,
                    send_from_directory)
 
+import auth
 from engine_prompts import (GC_NODES, GC_SYSTEM, HANDOFF_TMPL, M_NODES,
                             M_SYSTEM, MODE_NAME)
 
@@ -50,8 +51,16 @@ def db():
 def init_db():
     with db() as c:
         c.executescript("""
+        CREATE TABLE IF NOT EXISTS users(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL,
+          pass_hash TEXT NOT NULL DEFAULT '',
+          is_guest INTEGER NOT NULL DEFAULT 0,
+          recovery_code TEXT,
+          created_at TEXT DEFAULT (datetime('now','localtime')));
         CREATE TABLE IF NOT EXISTS projects(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL DEFAULT 0,
           title TEXT NOT NULL,
           mode TEXT NOT NULL DEFAULT 'global',
           current_node TEXT DEFAULT '',
@@ -66,10 +75,78 @@ def init_db():
 
 init_db()
 
+# ---------- 认证 ----------
+def _auth_user():
+    """从 Authorization: Bearer <token> 或 query 参数 token 解析当前用户；失败返回 None。"""
+    h = request.headers.get("Authorization", "")
+    token = h[7:].strip() if h.startswith("Bearer ") else ""
+    if not token:
+        token = request.args.get("token", "")  # EventSource 无法带自定义头
+    uid = auth.parse_token(token) if token else None
+    return auth.user_by_id(uid) if uid else None
+
+def _require_user():
+    u = _auth_user()
+    if not u:
+        return None, (jsonify({"error": "登录已失效"}), 401)
+    return u, None
+
+@app.post("/api/auth/guest")
+def auth_guest():
+    u = auth.create_guest()
+    return jsonify({"token": auth.issue_token(u["id"]), "user": u,
+                    "recovery_code": u["recovery_code"]})
+
+@app.post("/api/auth/guest/resume")
+def auth_guest_resume():
+    code = (request.get_json(force=True).get("code") or "").strip()
+    u = auth.guest_by_recovery(code)
+    if not u:
+        return jsonify({"error": "恢复码无效或已被升级为正式账号"}), 400
+    return jsonify({"token": auth.issue_token(u["id"]), "user": u})
+
+@app.post("/api/auth/register")
+def auth_register():
+    d = request.get_json(force=True)
+    username = (d.get("username") or "").strip()
+    password = d.get("password") or ""
+    if not username or len(password) < 6:
+        return jsonify({"error": "请填写用户名和至少6位密码"}), 400
+    if auth.username_exists(username):
+        return jsonify({"error": "该用户名已存在。若这是您刚注册的账号，请直接登录"}), 400
+    guest_uid = None
+    if d.get("guest_token"):  # 访客升级：注册后保留已有项目
+        guest_uid = auth.parse_token(d["guest_token"])
+    u = auth.register_user(username, password, guest_uid)
+    return jsonify({"token": auth.issue_token(u["id"]), "user": u})
+
+@app.post("/api/auth/login")
+def auth_login():
+    d = request.get_json(force=True)
+    u = auth.login_user((d.get("username") or "").strip(), d.get("password") or "")
+    if not u:
+        return jsonify({"error": "用户名或密码不正确"}), 400
+    return jsonify({"token": auth.issue_token(u["id"]), "user": u})
+
+@app.get("/api/auth/me")
+def auth_me():
+    u, err = _require_user()
+    if err:
+        return err
+    return jsonify({"user": u})
+
+@app.post("/api/auth/logout")
+def auth_logout():
+    return jsonify({"ok": True})  # 客户端清除本地凭据即可
+
 # ---------- 项目 CRUD ----------
 @app.get("/")
 def index():
     return send_from_directory("static", "index.html")
+
+@app.get("/ui/login.html")
+def login_page():
+    return send_from_directory("static", "login.html")
 
 @app.get("/api/health")
 def health():
@@ -77,31 +154,51 @@ def health():
 
 @app.post("/api/projects")
 def create_project():
+    u, err = _require_user()
+    if err:
+        return err
     d = request.get_json(force=True)
     title = (d.get("title") or "").strip() or "未命名课题"
     mode = d["mode"] if d.get("mode") in ("global", "theme") else "global"
     with db() as c:
-        cur = c.execute("INSERT INTO projects(title,mode) VALUES(?,?)", (title, mode))
+        cur = c.execute("INSERT INTO projects(user_id,title,mode) VALUES(?,?,?)", (u["id"], title, mode))
         pid = cur.lastrowid
     return jsonify({"id": pid})
 
 @app.get("/api/projects")
 def list_projects():
+    u, err = _require_user()
+    if err:
+        return err
     with db() as c:
-        rows = c.execute("SELECT * FROM projects ORDER BY id DESC").fetchall()
+        rows = c.execute("SELECT * FROM projects WHERE user_id=? ORDER BY id DESC", (u["id"],)).fetchall()
     return jsonify({"projects": [dict(r) for r in rows]})
+
+def _own_project(pid):
+    """校验项目属于当前用户；返回 (project, err)。"""
+    u, err = _require_user()
+    if err:
+        return None, err
+    with db() as c:
+        p = c.execute("SELECT * FROM projects WHERE id=? AND user_id=?", (pid, u["id"])).fetchone()
+    if not p:
+        return None, (jsonify({"error": "项目不存在"}), 404)
+    return dict(p), None
 
 @app.get("/api/projects/<int:pid>")
 def get_project(pid):
+    p, err = _own_project(pid)
+    if err:
+        return err
     with db() as c:
-        p = c.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone()
-        if not p:
-            return jsonify({"error": "项目不存在"}), 404
         msgs = c.execute("SELECT role,content,created_at FROM messages WHERE project_id=? ORDER BY id", (pid,)).fetchall()
-    return jsonify({"project": dict(p), "messages": [dict(m) for m in msgs]})
+    return jsonify({"project": p, "messages": [dict(m) for m in msgs]})
 
 @app.delete("/api/projects/<int:pid>")
 def del_project(pid):
+    p, err = _own_project(pid)
+    if err:
+        return err
     with db() as c:
         c.execute("DELETE FROM messages WHERE project_id=?", (pid,))
         c.execute("DELETE FROM projects WHERE id=?", (pid,))
@@ -110,6 +207,9 @@ def del_project(pid):
 # ---------- 对话 ----------
 @app.post("/api/projects/<int:pid>/messages")
 def add_message(pid):
+    p, err = _own_project(pid)
+    if err:
+        return err
     d = request.get_json(force=True)
     content = (d.get("content") or "").strip()
     if not content:
@@ -118,17 +218,16 @@ def add_message(pid):
         c.execute("INSERT INTO messages(project_id,role,content) VALUES(?, 'user', ?)", (pid, content))
     return jsonify({"ok": True})
 
-def _history(pid):
-    with db() as c:
-        p = c.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone()
-        msgs = c.execute("SELECT role,content FROM messages WHERE project_id=? ORDER BY id", (pid,)).fetchall()
-    return (dict(p) if p else None), [dict(m) for m in msgs]
 
 @app.get("/api/projects/<int:pid>/stream")
 def stream(pid):
-    p, msgs = _history(pid)
-    if not p:
-        return jsonify({"error": "项目不存在"}), 404
+    p, err = _own_project(pid)
+    if err:
+        return err
+    msgs = []
+    with db() as c:
+        rows = c.execute("SELECT role,content FROM messages WHERE project_id=? ORDER BY id", (pid,)).fetchall()
+    msgs = [dict(m) for m in rows]
     system = GC_SYSTEM if p["mode"] == "global" else M_SYSTEM
 
     def gen():
@@ -230,11 +329,16 @@ def _demo_reply(p, msgs):
 # ---------- 模式互导（完善建议#4） ----------
 @app.post("/api/projects/<int:pid>/switch")
 def switch_mode(pid):
+    p, err = _own_project(pid)
+    if err:
+        return err
     d = request.get_json(force=True)
     to = d.get("to")
     if to not in ("global", "theme"):
         return jsonify({"error": "目标模式不合法"}), 400
-    p, msgs = _history(pid)
+    with db() as c:
+        rows = c.execute("SELECT role,content FROM messages WHERE project_id=? ORDER BY id", (pid,)).fetchall()
+    msgs = [dict(m) for m in rows]
     last_assistant = next((m["content"] for m in reversed(msgs) if m["role"] == "assistant"), "")
     summary = last_assistant[:400]
     node = p["current_node"] or "（尚无进度）"
@@ -253,7 +357,12 @@ _HEAD_RE = re.compile(r"^(#{2,4})\s*第([一二三四五六1-6])件[：:]?\s*(.*
 
 @app.get("/api/projects/<int:pid>/export")
 def export_package(pid):
-    p, msgs = _history(pid)
+    p, err = _own_project(pid)
+    if err:
+        return err
+    with db() as c:
+        rows = c.execute("SELECT role,content FROM messages WHERE project_id=? ORDER BY id", (pid,)).fetchall()
+    msgs = [dict(m) for m in rows]
     pieces = {}
 
     def feed(text):

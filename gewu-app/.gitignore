@@ -2,3 +2,4 @@ gewu.db
 __pycache__/
 .env
 *.pyc
+.secret

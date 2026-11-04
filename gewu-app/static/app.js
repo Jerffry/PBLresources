@@ -6,7 +6,22 @@ const NODES = {
   theme:  [["M1","课标解析"],["M2","教材分析"],["M3","主题建构"],["M4","工具实践"],["M5","课件精化"]],
 };
 const MODE_NAME = { global: "🌍 全球胜任力", theme: "🧩 跨学科主题学习" };
+const TOKEN_KEY = "jw_token", USER_KEY = "jw_user";
 const $ = (id) => document.getElementById(id);
+
+/* ---------- 鉴权 ---------- */
+function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
+function authHeaders() { return { "Authorization": "Bearer " + token() }; }
+function clearAuth() { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); }
+function gotoLogin() { location.href = "/ui/login.html"; }
+
+async function api(url, opts = {}) {
+  const resp = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", ...authHeaders(), ...(opts.headers || {}) } });
+  if (resp.status === 401) { clearAuth(); gotoLogin(); throw new Error("登录已失效"); }
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || "请求失败");
+  return data;
+}
 
 let projects = [];
 let current = null;   // {id,title,mode,current_node}
@@ -15,6 +30,19 @@ let es = null;
 
 /* ---------- 初始化 ---------- */
 async function init() {
+  if (!token()) { gotoLogin(); return; }
+  let me;
+  try { me = await api("/api/auth/me"); }
+  catch (_) { return; }  // 401 已跳转登录页
+  const u = me.user || {};
+  $("userChip").classList.remove("hidden");
+  $("userChip").textContent = u.is_guest ? `${u.username} · 访客` : u.username;
+  $("btnLogout").classList.remove("hidden");
+  $("btnLogout").onclick = async () => {
+    try { await api("/api/auth/logout", { method: "POST" }); } catch (_) {}
+    clearAuth(); gotoLogin();
+  };
+
   const h = await (await fetch("/api/health")).json();
   $("llmState").textContent = h.llm ? `引擎：${h.model}` : "引擎：demo 模式（未配Key）";
   await loadProjects();
@@ -31,7 +59,7 @@ async function init() {
 }
 
 async function loadProjects() {
-  const d = await (await fetch("/api/projects")).json();
+  const d = await api("/api/projects");
   projects = d.projects || [];
   const box = $("projectList");
   box.innerHTML = "";
@@ -46,7 +74,7 @@ async function loadProjects() {
     el.querySelector(".del").onclick = async (e) => {
       e.stopPropagation();
       if (!confirm(`删除项目「${p.title}」？不可恢复。`)) return;
-      await fetch(`/api/projects/${p.id}`, { method: "DELETE" });
+      await api(`/api/projects/${p.id}`, { method: "DELETE" });
       if (current && current.id === p.id) closeProject();
       loadProjects();
     };
@@ -57,7 +85,7 @@ async function loadProjects() {
 
 /* ---------- 项目打开 / 新建 ---------- */
 async function openProject(id) {
-  const d = await (await fetch(`/api/projects/${id}`)).json();
+  const d = await api(`/api/projects/${id}`);
   current = d.project;
   renderShell();
   $("chat").innerHTML = "";
@@ -69,10 +97,9 @@ async function openProject(id) {
 async function createProject() {
   const title = $("npTitle").value.trim() || "未命名课题";
   const mode = document.querySelector('input[name="npmode"]:checked').value;
-  const d = await (await fetch("/api/projects", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, mode }),
-  })).json();
+  const d = await api("/api/projects", {
+    method: "POST", body: JSON.stringify({ title, mode }),
+  });
   $("modalNew").classList.add("hidden");
   $("npTitle").value = "";
   await loadProjects();
@@ -210,9 +237,8 @@ async function send() {
   if (!text) return;
   $("input").value = "";
   addMessage("user", text);
-  await fetch(`/api/projects/${current.id}/messages`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content: text }),
+  await api(`/api/projects/${current.id}/messages`, {
+    method: "POST", body: JSON.stringify({ content: text }),
   });
   streamOnce();
 }
@@ -222,7 +248,7 @@ function streamOnce() {
   $("btnSend").disabled = true;
   const bubble = addMessage("assistant", "…", { streaming: true });
   let full = "";
-  es = new EventSource(`/api/projects/${current.id}/stream`);
+  es = new EventSource(`/api/projects/${current.id}/stream?token=${encodeURIComponent(token())}`);
   es.onmessage = (ev) => {
     if (ev.data === "[DONE]") { es.close(); finish(full, bubble); return; }
     try {
@@ -258,10 +284,9 @@ async function switchMode() {
   const to = current.mode === "global" ? "theme" : "global";
   const label = MODE_NAME[to];
   if (!confirm(`将本项目切换为「${label}」模式？\n格物将携带课题与已确认产出的摘要，在新模式下继续设计。`)) return;
-  const d = await (await fetch(`/api/projects/${current.id}/switch`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ to }),
-  })).json();
+  const d = await api(`/api/projects/${current.id}/switch`, {
+    method: "POST", body: JSON.stringify({ to }),
+  });
   current.mode = to;
   $("modeBadge").textContent = MODE_NAME[to];
   renderNodes(to, null);

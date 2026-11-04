@@ -88,3 +88,32 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy)}
   #btnMenu{display:inline-block}
   #chat,#inputBar{padding-left:16px;padding-right:16px}
 }
+
+/* 用户chip */
+.user-chip{font-size:12px;padding:3px 10px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+
+/* 登录页 */
+.login-body{background:var(--navy);display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-wrap{display:flex;gap:48px;align-items:center;padding:24px;max-width:900px;width:100%}
+.login-hero{color:#fff;flex:1}
+.logo-big{font-size:44px;font-weight:700;letter-spacing:10px}
+.hero-sub{font-size:18px;margin:8px 0 4px;opacity:.9}
+.hero-tip{font-size:12px;opacity:.65;margin-bottom:18px}
+.hero-list{list-style:none;font-size:13px;line-height:2.1;opacity:.85}
+.login-card{background:#fff;border-radius:16px;padding:26px;width:340px;flex-shrink:0}
+.tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab{flex:1;padding:8px;background:var(--bg);border:0;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted)}
+.tab.active{background:var(--navy);color:#fff;font-weight:700}
+.pane{display:none;flex-direction:column}
+.pane.active{display:flex}
+.pane label{font-size:12px;color:var(--muted);margin:8px 0 4px}
+.pane input{padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+.pane .chk{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--navy);margin:12px 0 4px}
+.pane .wide,.ghost.wide{margin-top:14px;width:100%;padding:10px}
+.divider{text-align:center;color:var(--muted);font-size:12px;margin:18px 0 6px}
+.resume{text-align:center;margin-top:14px;font-size:12px;color:var(--muted)}
+.resume span{cursor:pointer;text-decoration:underline dotted}
+#resumeBox{display:flex;gap:6px;margin-top:8px}
+#resumeBox input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px}
+#myCode{margin-top:10px;background:var(--bg);border-radius:8px;padding:8px;font-size:12px;color:var(--amber)}
+@media (max-width:760px){.login-wrap{flex-direction:column;gap:20px}.login-hero{text-align:center}}
