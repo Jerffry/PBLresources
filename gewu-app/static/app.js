@@ -38,6 +38,26 @@ async function api(url, opts = {}) {
   return data;
 }
 
+/* ---------- Toast ---------- */
+function toast(msg, type = "") {
+  const box = $("toastBox");
+  const el = document.createElement("div");
+  el.className = "toast " + type;
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .3s"; }, 2600);
+  setTimeout(() => el.remove(), 3000);
+}
+
+/* ---------- 智能滚动：仅在贴近底部时自动跟随，滚上去看历史时不打扰 ---------- */
+function nearBottom() {
+  const c = $("chat");
+  return c.scrollHeight - c.scrollTop - c.clientHeight < 90;
+}
+function scrollBottom(force) {
+  if (force || nearBottom()) $("chat").scrollTop = $("chat").scrollHeight;
+}
+
 let projects = [];
 let current = null;   // {id,title,mode,current_node}
 let streaming = false;
@@ -80,6 +100,17 @@ async function init() {
   $("btnMenu").onclick = () => $("sidebar").classList.toggle("open");
   $("btnExport").onclick = () => current && window.open(`/api/projects/${current.id}/export`);
   $("btnSwitch").onclick = switchMode;
+  // 输入框自动增高
+  $("input").addEventListener("input", () => {
+    const el = $("input");
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 160) + "px";
+  });
+  // 滚动到底FAB
+  $("chat").addEventListener("scroll", () => {
+    $("scrollFab").classList.toggle("show", !nearBottom());
+  });
+  $("scrollFab").onclick = () => scrollBottom(true);
 }
 
 async function loadProjects() {
@@ -99,6 +130,7 @@ async function loadProjects() {
       e.stopPropagation();
       if (!confirm(`删除项目「${p.title}」？不可恢复。`)) return;
       await api(`/api/projects/${p.id}`, { method: "DELETE" });
+      toast(`已删除「${p.title}」`, "ok");
       if (current && current.id === p.id) closeProject();
       loadProjects();
     };
@@ -115,7 +147,7 @@ async function openProject(id) {
   $("chat").innerHTML = "";
   for (const m of d.messages) addMessage(m.role, m.content, { save: false });
   refreshProgress();
-  $("chat").scrollTop = $("chat").scrollHeight;
+  scrollBottom(true);
 }
 
 async function createProject() {
@@ -195,6 +227,12 @@ function renderNodes(mode, doneSet) {
     el.className = cls;
     el.textContent = `${id} ${name}`;
     flow.appendChild(el);
+    if (i < nodes.length - 1) {
+      const sep = document.createElement("span");
+      sep.className = "n-sep";
+      sep.textContent = "›";
+      flow.appendChild(sep);
+    }
   });
 }
 
@@ -281,7 +319,7 @@ function addMessage(role, content, opt = {}) {
     wrap.appendChild(tools);
   }
   $("chat").appendChild(wrap);
-  $("chat").scrollTop = $("chat").scrollHeight;
+  scrollBottom(false);
   return bubble;
 }
 
@@ -300,8 +338,12 @@ async function send() {
 
 function streamOnce() {
   streaming = true;
-  $("btnSend").disabled = true;
-  const bubble = addMessage("assistant", "…", { streaming: true });
+  const btn = $("btnSend");
+  btn.disabled = true;
+  btn.textContent = "生成中…";
+  const bubble = addMessage("assistant", "", { streaming: true });
+  bubble.innerHTML = '<span class="typing-dots"><i></i><i></i><i></i></span>';
+  scrollBottom(true);
   let full = "";
   // 渲染节流：流式期间高频分片只记录文本，重渲染合并到120ms一拍（对齐部署版做法）
   let dirty = false, timer = null;
@@ -309,7 +351,7 @@ function streamOnce() {
     if (!dirty) return;
     dirty = false;
     bubble.innerHTML = renderMD(full);
-    $("chat").scrollTop = $("chat").scrollHeight;
+    scrollBottom(false);
   };
   timer = setInterval(paint, 120);
   es = new EventSource(`/api/projects/${current.id}/stream?token=${encodeURIComponent(token())}`);
@@ -326,7 +368,9 @@ function streamOnce() {
 
 function finish(full, bubble) {
   streaming = false;
-  $("btnSend").disabled = false;
+  const btn = $("btnSend");
+  btn.disabled = false;
+  btn.textContent = "发送";
   if (full) {
     bubble.innerHTML = renderMD(full);
     const wrap = bubble.parentElement;
@@ -338,6 +382,7 @@ function finish(full, bubble) {
     tools.appendChild(cp);
     wrap.appendChild(tools);
   }
+  scrollBottom(false);
   refreshProgress();
   loadProjects();
 }

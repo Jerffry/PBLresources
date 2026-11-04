@@ -9,13 +9,14 @@
 <body class="login-body">
 <div class="login-wrap">
   <div class="login-hero">
+    <svg class="hero-globe" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#1a4f8a"/><ellipse cx="24" cy="24" rx="9" ry="20" fill="none" stroke="#fff" stroke-width="1.5" opacity=".8"/><line x1="4" y1="24" x2="44" y2="24" stroke="#fff" stroke-width="1.5" opacity=".8"/><ellipse cx="24" cy="13" rx="17" ry="5.5" fill="none" stroke="#fff" opacity=".55"/><ellipse cx="24" cy="35" rx="17" ry="5.5" fill="none" stroke="#fff" opacity=".55"/></svg>
     <div class="logo-big">格物</div>
     <div class="hero-sub">跨学科主题学习设计器</div>
     <div class="hero-tip">生成式人工智能视角下 · 高中地理全球胜任力教学设计</div>
     <ul class="hero-list">
       <li>🧭 六节点工作流引导，沿论文五步策略闭环推进</li>
       <li>🎯 全球胜任力四维 × 地理核心素养锚定培养内容</li>
-      <li>🗂️ 多课题项目管理，对话进度本地保存</li>
+      <li>🗂️ 多课题项目管理，对话进度云端保存</li>
     </ul>
   </div>
 
@@ -72,7 +73,16 @@ async function postJSON(url, body) {
   if (!r.ok) throw new Error(d.error || "请求失败");
   return d;
 }
-function toast(msg) { alert(msg); }
+function toast(msg, type = "err") {
+  let box = document.getElementById("toastBox");
+  if (!box) { box = document.createElement("div"); box.id = "toastBox"; document.body.appendChild(box); }
+  const el = document.createElement("div");
+  el.className = "toast " + type;
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .3s"; }, 2600);
+  setTimeout(() => el.remove(), 3000);
+}
 
 /* Tabs */
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
@@ -104,7 +114,11 @@ $("form-reg").onsubmit = async (e) => {
   if ($("rgPass").value.length < 6) return toast("密码至少 6 位");
   const body = { username: $("rgUser").value.trim(), password: $("rgPass").value };
   if ($("rgKeep").checked) body.guest_token = localStorage.getItem(TOKEN_KEY) || "";
-  try { const d = await postJSON("/api/auth/register", body); saveAuth(d.token, d.user); }
+  try {
+    const d = await postJSON("/api/auth/register", body);
+    if (body.guest_token) { toast(`升级成功！账号「${d.user.username}」已保留全部项目`, "ok"); await new Promise(r => setTimeout(r, 1200)); }
+    saveAuth(d.token, d.user);
+  }
   catch (err) { toast(err.message); }
 };
 

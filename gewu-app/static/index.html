@@ -4,26 +4,40 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>格物 · 教学设计智能体</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='20' fill='%231a4f8a'/%3E%3Cellipse cx='24' cy='24' rx='9' ry='20' fill='none' stroke='%23fff' stroke-width='1.5' opacity='.8'/%3E%3Cline x1='4' y1='24' x2='44' y2='24' stroke='%23fff' stroke-width='1.5' opacity='.8'/%3E%3Cellipse cx='24' cy='13' rx='17' ry='5.5' fill='none' stroke='%23fff' opacity='.55'/%3E%3Cellipse cx='24' cy='35' rx='17' ry='5.5' fill='none' stroke='%23fff' opacity='.55'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<g id="globe-icon">
+  <circle cx="24" cy="24" r="20" fill="#1a4f8a"/>
+  <ellipse cx="24" cy="24" rx="9" ry="20" fill="none" stroke="#fff" stroke-width="1.5" opacity=".8"/>
+  <line x1="4" y1="24" x2="44" y2="24" stroke="#fff" stroke-width="1.5" opacity=".8"/>
+  <ellipse cx="24" cy="13" rx="17" ry="5.5" fill="none" stroke="#fff" opacity=".55"/>
+  <ellipse cx="24" cy="35" rx="17" ry="5.5" fill="none" stroke="#fff" opacity=".55"/>
+</g>
+</defs></svg>
+
 <div id="app">
   <aside id="sidebar">
-    <div class="logo">格<span class="logo-text">格物 · 教学设计智能体</span></div>
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 48 48"><use href="#globe-icon"/></svg>
+      <div class="logo-text"><b>格物</b><small>高中地理教学设计智能体</small></div>
+    </div>
     <button id="btnNew" class="primary">＋ 新建设计项目</button>
     <div id="projectList"></div>
-    <div class="foot"><span id="llmState">检测中…</span><br>V2.5 本地版</div>
+    <div class="foot"><span class="dot"></span><span id="llmState">检测中…</span><br>格物 · V2.8 本地版</div>
   </aside>
 
   <main id="main">
     <header id="topbar">
-      <button id="btnMenu" class="ghost">☰</button>
+      <button id="btnMenu" class="ghost" title="项目列表">☰</button>
       <div id="projTitle">选择或新建项目</div>
       <span id="modeBadge" class="mode-badge hidden"></span>
       <span id="userChip" class="user-chip hidden"></span>
       <div class="spacer"></div>
-      <button id="btnSwitch" class="ghost hidden">⇄ 切换模式</button>
-      <button id="btnExport" class="ghost hidden">📦 导出方案包</button>
+      <button id="btnSwitch" class="ghost hidden" title="在两条设计主线间切换，自动携带进度与产出摘要">⇄ 切换模式</button>
+      <button id="btnExport" class="ghost hidden" title="将方案包按件拆分为md并打包zip下载">📦 导出方案包</button>
       <button id="btnLogout" class="ghost hidden">退出</button>
     </header>
 
@@ -36,6 +50,7 @@
 
     <div id="chat" class="empty">
       <div id="emptyHint">
+        <svg class="globe" viewBox="0 0 48 48"><use href="#globe-icon"/></svg>
         <div class="big">格物致知 · 物格而后知至</div>
         <p id="hintText">新建项目并输入课题名称，格物将从第一个节点开始，逐环节生成教学设计方案。</p>
         <div id="quickChips" class="hidden">
@@ -46,6 +61,8 @@
         </div>
       </div>
     </div>
+
+    <button id="scrollFab" title="回到底部">↓</button>
 
     <footer id="inputBar" class="hidden">
       <textarea id="input" rows="1" placeholder="输入课题名称，或回复当前节点…（Enter发送，Shift+Enter换行）"></textarea>
@@ -61,8 +78,8 @@
     <input id="npTitle" placeholder="如：海洋空间资源开发与国家安全">
     <label>设计模式</label>
     <div class="mode-pick">
-      <label class="pick"><input type="radio" name="npmode" value="global" checked><div><b>🌍 全球胜任力</b><small>论文五步策略 · N0–N6 · 方案包六件套</small></div></label>
-      <label class="pick"><input type="radio" name="npmode" value="theme"><div><b>🧩 跨学科主题学习</b><small>课标-教材-主题-工具-课件 · M1–M5 · 问题链＋五件套</small></div></label>
+      <label class="pick"><input type="radio" name="npmode" value="global" checked><div><b>🌍 全球胜任力</b><small>论文五步策略 · N0–N6 · 方案包六件套（1课时为主）</small></div></label>
+      <label class="pick"><input type="radio" name="npmode" value="theme"><div><b>🧩 跨学科主题学习</b><small>课标-教材-主题四核-工具-课件 · M1–M5 · 问题链＋五件套</small></div></label>
     </div>
     <div class="row">
       <button id="npCancel" class="ghost">取消</button>
@@ -71,6 +88,7 @@
   </div>
 </div>
 
+<div id="toastBox"></div>
 <script src="/static/app.js"></script>
 </body>
 </html>
