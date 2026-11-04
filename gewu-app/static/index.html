@@ -64,6 +64,50 @@
 
     <button id="scrollFab" title="回到底部">↓</button>
 
+    <!-- 格物 · 学者地球小人（状态感知吉样物） -->
+    <div id="mascot" title="格物 · 点我看看小贴士">
+      <div id="mascotBubble" class="hidden"><span id="mascotText"></span></div>
+      <svg id="mascotSvg" viewBox="0 0 120 132" aria-label="格物">
+        <!-- 左臂（悬停挥手） -->
+        <path class="m-arm-l" d="M38 96 Q26 100 27 110" stroke="#173A56" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <!-- 右臂 -->
+        <path class="m-arm-r" d="M82 96 Q94 100 93 110" stroke="#173A56" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <!-- 脚 -->
+        <ellipse cx="48" cy="123" rx="7" ry="4" fill="#0B1F33"/>
+        <ellipse cx="72" cy="123" rx="7" ry="4" fill="#0B1F33"/>
+        <!-- 长袍身体 -->
+        <path d="M40 86 Q60 78 80 86 L87 116 Q60 125 33 116 Z" fill="#173A56"/>
+        <path d="M40 86 Q60 78 80 86 L81 93 Q60 86 39 93 Z" fill="#0E2740"/>
+        <!-- 衣领金色饰带 -->
+        <path d="M52 84 L60 94 L68 84" stroke="#C9A24B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- 地球脑袋 -->
+        <circle cx="60" cy="56" r="31" fill="#1A4F8A"/>
+        <ellipse cx="60" cy="56" rx="11" ry="31" fill="none" stroke="#FFFFFF" stroke-width="1.6" opacity=".65"/>
+        <line x1="29" y1="56" x2="91" y2="56" stroke="#FFFFFF" stroke-width="1.6" opacity=".65"/>
+        <ellipse cx="60" cy="40" rx="25" ry="8" fill="none" stroke="#FFFFFF" stroke-width="1.2" opacity=".4"/>
+        <ellipse cx="60" cy="72" rx="25" ry="8" fill="none" stroke="#FFFFFF" stroke-width="1.2" opacity=".4"/>
+        <!-- 陆地色块 -->
+        <path d="M36 48 Q44 38 54 44 Q60 40 58 50 Q52 58 42 54 Q34 54 36 48Z" fill="#2E7D52" opacity=".75"/>
+        <path d="M68 66 Q78 62 82 70 Q78 78 70 74 Q64 72 68 66Z" fill="#2E7D52" opacity=".75"/>
+        <!-- 眼睛（眨眼动画） -->
+        <g class="m-eyes">
+          <circle class="m-eye" cx="50" cy="55" r="3.4" fill="#0B1F33"/>
+          <circle class="m-eye" cx="70" cy="55" r="3.4" fill="#0B1F33"/>
+          <circle cx="51.2" cy="53.8" r="1" fill="#fff"/>
+          <circle cx="71.2" cy="53.8" r="1" fill="#fff"/>
+        </g>
+        <!-- 腮红 -->
+        <circle cx="42" cy="63" r="3.4" fill="#E8927C" opacity=".55"/>
+        <circle cx="78" cy="63" r="3.4" fill="#E8927C" opacity=".55"/>
+        <!-- 微笑 -->
+        <path d="M53 64 Q60 70 67 64" stroke="#FFFFFF" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <!-- 儒生方巾 -->
+        <path d="M33 32 Q60 8 87 32 L84 41 Q60 34 36 41 Z" fill="#0B1F33"/>
+        <rect x="37" y="37" width="46" height="6" rx="3" fill="#C9A24B"/>
+        <circle cx="60" cy="21" r="3.4" fill="#C9A24B"/>
+      </svg>
+    </div>
+
     <footer id="inputBar" class="hidden">
       <textarea id="input" rows="1" placeholder="输入课题名称，或回复当前节点…（Enter发送，Shift+Enter换行）"></textarea>
       <button id="btnSend" class="primary">发送</button>

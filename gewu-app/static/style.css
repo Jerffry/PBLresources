@@ -222,6 +222,28 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 #resumeBox input{flex:1;padding:9px 12px;border:1.5px solid var(--line);border-radius:var(--r-md);font-size:12.5px}
 #myCode{margin-top:11px;background:var(--amber-bg);border:1px dashed var(--gold);border-radius:var(--r-md);padding:9px;font-size:12px;color:var(--amber)}
 
+/* ---------- 吉样物「格物」· 学者地球小人 ---------- */
+#mascot{position:fixed;right:26px;bottom:126px;width:88px;z-index:20;cursor:pointer;user-select:none;animation:mascotFloat 4s ease-in-out infinite;transition:transform .25s cubic-bezier(.34,1.5,.64,1)}
+#mascot:hover{transform:scale(1.08)}
+#mascot:active{transform:scale(.96)}
+#mascotSvg{width:100%;display:block;filter:drop-shadow(0 6px 14px rgba(14,39,64,.28))}
+@keyframes mascotFloat{0%,100%{translate:0 0}50%{translate:0 -7px}}
+/* 眨眼 */
+.m-eye{animation:mascotBlink 4.6s infinite;transform-box:fill-box;transform-origin:center}
+.m-eye + .m-eye{animation-delay:.05s}
+@keyframes mascotBlink{0%,91%,100%{transform:scaleY(1)}94%{transform:scaleY(.06)}}
+/* 悬停挥手（左臂） */
+#mascot:hover .m-arm-l{animation:mascotWave .9s ease-in-out infinite;transform-box:fill-box;transform-origin:top right}
+@keyframes mascotWave{0%,100%{transform:rotate(0)}50%{transform:rotate(-24deg)}}
+/* 思考态：整体轻微摇摆 */
+#mascot.thinking{animation:mascotFloat 2.2s ease-in-out infinite, mascotSway 3s ease-in-out infinite}
+@keyframes mascotSway{0%,100%{rotate:0deg}25%{rotate:2.4deg}75%{rotate:-2.4deg}}
+/* 气泡 */
+#mascotBubble{position:absolute;bottom:calc(100% + 12px);right:6px;width:224px;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:10px 13px;font-size:12.5px;line-height:1.65;color:var(--navy);box-shadow:var(--sh-2);animation:mascotPop .28s cubic-bezier(.34,1.4,.64,1)}
+#mascotBubble::after{content:"";position:absolute;bottom:-7px;right:22px;width:12px;height:12px;background:#fff;border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg)}
+@keyframes mascotPop{from{opacity:0;transform:translateY(8px) scale(.92)}to{opacity:1;transform:none}}
+#mascotBubble .typing-dots{height:14px}
+
 /* ---------- 响应式 ---------- */
 @media (max-width:900px){
   #corePanel{grid-template-columns:repeat(2,1fr)}
@@ -233,7 +255,9 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
   #chat,#inputBar{padding-left:16px;padding-right:16px}
   #chat{padding-top:14px}
   #nodeFlow,#corePanel,#soloPanel{margin-left:12px;margin-right:12px;padding-left:10px;padding-right:10px}
-  #scrollFab{right:20px}
+  #scrollFab{right:20px;bottom:104px}
+  #mascot{width:62px;right:12px;bottom:158px}
+  #mascotBubble{width:180px;right:0}
   .msg.user{max-width:88%}
   .msg.assistant{max-width:100%}
 }

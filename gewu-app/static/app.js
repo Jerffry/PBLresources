@@ -58,6 +58,36 @@ function scrollBottom(force) {
   if (force || nearBottom()) $("chat").scrollTop = $("chat").scrollHeight;
 }
 
+/* ---------- 吉样物「格物」· 状态感知气泡 ---------- */
+const MASCOT_TIPS = [
+  "小贴士：目标要用 SOLO 白名单动词写——「识别、说出」是单点层，「设计方案」是拓展层 📐",
+  "小贴士：【依据】【待核】【建议】【学情假设】四种徽章，标红【待核】的内容课前一定要核实哦 🔍",
+  "小贴士：一条设计主线走不完？右上角「⇄ 切换模式」可携带进度与摘要换线续作 ✨",
+  "小贴士：每完成一个环节，上方的节点流会自动点亮，随时知道走到哪一步了 🧭",
+  "小贴士：M 线的核心目标讲究「1个目标＋进阶表现」，进阶表现要能观察到学生证据 🎯",
+  "小贴士：N 线走到 N6 会生成六件套方案包，点右上「📦 导出」即可按件拆分下载 📦",
+  "小贴士：换设备也不怕——登录页用访客恢复码可以找回之前的备课进度 🔑",
+];
+let mascotTimer = null;
+function mascotSay(text, opts = {}) {
+  const box = $("mascotBubble"), el = $("mascotText"), m = $("mascot");
+  clearTimeout(mascotTimer);
+  box.classList.remove("hidden");
+  el.textContent = text;
+  m.classList.toggle("thinking", !!opts.thinking);
+  if (opts.thinking) {
+    el.innerHTML = text + ' <span class="typing-dots"><i></i><i></i><i></i></span>';
+  }
+  if (!opts.sticky && !opts.thinking) {
+    mascotTimer = setTimeout(() => box.classList.add("hidden"), opts.hold || 6000);
+  }
+}
+function mascotQuiet() {
+  clearTimeout(mascotTimer);
+  $("mascotBubble").classList.add("hidden");
+  $("mascot").classList.remove("thinking");
+}
+
 let projects = [];
 let current = null;   // {id,title,mode,current_node}
 let streaming = false;
@@ -98,7 +128,11 @@ async function init() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
   $("btnMenu").onclick = () => $("sidebar").classList.toggle("open");
-  $("btnExport").onclick = () => current && window.open(`/api/projects/${current.id}/export`);
+  $("btnExport").onclick = () => {
+    if (!current) return;
+    mascotSay("zip 开始下载：方案按件拆分为 md，附完整对话记录 📦");
+    window.open(`/api/projects/${current.id}/export`);
+  };
   $("btnSwitch").onclick = switchMode;
   // 输入框自动增高
   $("input").addEventListener("input", () => {
@@ -111,6 +145,11 @@ async function init() {
     $("scrollFab").classList.toggle("show", !nearBottom());
   });
   $("scrollFab").onclick = () => scrollBottom(true);
+  // 吉样物：问候 + 点击掉落小贴士
+  $("mascot").onclick = () => {
+    mascotSay(MASCOT_TIPS[Math.floor(Math.random() * MASCOT_TIPS.length)], { hold: 8000 });
+  };
+  setTimeout(() => mascotSay("你好，我是格物 🌏 新建一个项目，或点下面的示例课题开始设计吧！", { hold: 9000 }), 900);
 }
 
 async function loadProjects() {
@@ -148,6 +187,9 @@ async function openProject(id) {
   for (const m of d.messages) addMessage(m.role, m.content, { save: false });
   refreshProgress();
   scrollBottom(true);
+  const nd = current.current_node || "";
+  mascotSay(nd ? `课题《${current.title}》已打开，上次进行到 ${nd}，继续推进或让我调整皆可～`
+              : `课题《${current.title}》已打开，发送课题信息即可开始第一环节！`);
 }
 
 async function createProject() {
@@ -354,6 +396,7 @@ function streamOnce() {
     scrollBottom(false);
   };
   timer = setInterval(paint, 120);
+  mascotSay("正在为您设计这一环节，稍候…", { thinking: true, sticky: true });
   es = new EventSource(`/api/projects/${current.id}/stream?token=${encodeURIComponent(token())}`);
   es.onmessage = (ev) => {
     if (ev.data === "[DONE]") { es.close(); clearInterval(timer); paint(); finish(full, bubble); return; }
@@ -385,6 +428,15 @@ function finish(full, bubble) {
   scrollBottom(false);
   refreshProgress();
   loadProjects();
+  // 吉样物反馈：完成提示 / 方案包就绪提醒
+  const lastLine = full.slice(-400);
+  if (/已交付|全部完成|五件套已交付/.test(lastLine)) {
+    mascotSay("🎉 方案包已就绪！点右上「📦 导出方案包」即可按件拆分下载～", { hold: 12000 });
+  } else if (full) {
+    mascotSay("本环节完成 ✅ 请确认内容，回复「继续」进入下一环节，或告诉我要改哪里～");
+  } else {
+    mascotQuiet();
+  }
 }
 
 /* ---------- 模式互导 ---------- */
@@ -401,6 +453,7 @@ async function switchMode() {
   renderNodes(to, null);
   $("corePanel").classList.toggle("hidden", to !== "theme");
   if (to === "theme") renderCores(new Set());
+  mascotSay(`已切换到「${label}」，课题与已确认产出摘要已携带，正在为您衔接新流程…`);
   if (d.handoff) { addMessage("user", d.handoff); streamOnce(); }
   loadProjects();
 }
