@@ -80,8 +80,8 @@ button{font-family:inherit}
 :focus-visible{outline:2px solid var(--navy);outline-offset:2px;border-radius:4px}
 button.primary:focus-visible,#scrollFab:focus-visible,.n-node.done:focus-visible{outline-color:var(--gold)}
 
-/* ---------- 布局：超宽屏限宽居中（1720px），两侧留呼吸背景，防行宽失控 ---------- */
-#app{display:flex;height:100vh;max-width:1720px;margin:0 auto;background:var(--bg);box-shadow:0 0 48px rgba(14,39,64,.10)}
+/* ---------- 布局：全屏贴边（行宽科学由正文列 --measure 保证，外壳不限宽） ---------- */
+#app{display:flex;height:100vh;background:var(--bg)}
 #main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 
 /* ---------- 侧栏 ---------- */
@@ -150,10 +150,20 @@ button.ghost:hover{border-color:var(--navy);color:var(--navy);background:var(--c
 /* ---------- 聊天（行宽约束：正文列 ≤780px，≈50汉字/行） ---------- */
 #chat{flex:1;overflow-y:auto;padding:22px var(--pad-x) 14px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
 #chat.empty{justify-content:center;align-items:center;text-align:center}
-#emptyHint .big{font-size:24px;font-weight:700;letter-spacing:5px;margin-bottom:6px;color:var(--navy)}
+#emptyHint .big{font-size:24px;font-weight:700;letter-spacing:5px;margin-bottom:8px;color:var(--navy)}
 #emptyHint .globe{width:74px;height:74px;margin:0 auto 14px;display:block;opacity:.9;animation:float 4s ease-in-out infinite}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-#emptyHint p{color:var(--muted);font-size:13px;max-width:430px;line-height:1.85}
+#emptyHint p{color:var(--muted);font-size:13px;max-width:460px;line-height:1.85}
+#emptyHint{max-width:640px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:6px}
+.welcome-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 6px;width:100%;max-width:560px}
+.wcard{text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px 16px;cursor:pointer;transition:var(--tr);display:flex;flex-direction:column;gap:6px;box-shadow:var(--sh-1)}
+.wcard:hover{border-color:var(--btn-bg);transform:translateY(-2px);box-shadow:var(--sh-2)}
+.wcard b{font-size:14.5px;color:var(--navy)}
+.wcard small{color:var(--muted);font-size:12px;line-height:1.7}
+.hint-actions{margin-top:8px}
+#btnNewBig{padding:11px 26px;font-size:14.5px}
+.hint-sub{font-size:12px;color:var(--muted-2);margin-top:14px}
+@media (max-width:640px){.welcome-cards{grid-template-columns:1fr}}
 
 .msg{max-width:100%;display:flex;flex-direction:column;animation:rise .3s ease}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}

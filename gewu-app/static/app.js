@@ -422,6 +422,16 @@ function renderShell() {
   document.querySelectorAll("#quickChips .chip").forEach(c => {
     c.onclick = () => { $("input").value = c.textContent; $("input").focus(); };
   });
+  // 欢迎面板：模式卡点击 → 打开新建弹窗并预选该模式；大按钮同新建
+  document.querySelectorAll(".wcard").forEach(w => {
+    w.onclick = () => {
+      $("modalNew").classList.remove("hidden");
+      document.querySelector(`input[name="npmode"][value="${w.dataset.mode}"]`).checked = true;
+      $("npTitle").focus();
+    };
+  });
+  const big = $("btnNewBig");
+  if (big) big.onclick = () => $("modalNew").classList.remove("hidden");
   $("corePanel").classList.toggle("hidden", !has || current.mode !== "theme");
   if (has) {
     $("modeBadge").textContent = MODE_NAME[current.mode];
