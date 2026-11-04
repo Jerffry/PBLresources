@@ -196,6 +196,22 @@ class GewuAPITest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(self.c.get(f"/api/projects/{pid}/export?token=bad").status_code, 401)
 
+    def test_20_seed_demo(self):
+        """示范案例初始化：注入完整节点对话，进度直达末节点，开箱即可导出。"""
+        tok = self.post("/api/auth/guest").get_json()["token"]
+        pid = self.post("/api/projects", {"title": "南海示范", "mode": "global", "seed_demo": True}, tok).get_json()["id"]
+        d = self.get(f"/api/projects/{pid}", tok).get_json()
+        self.assertEqual(d["project"]["current_node"], "N6")
+        self.assertEqual(len(d["messages"]), 14, "N线7问7答")
+        self.assertIn("六件套", d["messages"][-1]["content"])
+        r = self.get(f"/api/projects/{pid}/export?token={tok}")
+        self.assertEqual(r.status_code, 200, "示范项目应可立即导出方案包")
+        # M线示范
+        pid2 = self.post("/api/projects", {"title": "黄河示范", "mode": "theme", "seed_demo": True}, tok).get_json()["id"]
+        d2 = self.get(f"/api/projects/{pid2}", tok).get_json()
+        self.assertEqual(d2["project"]["current_node"], "M5")
+        self.assertEqual(len(d2["messages"]), 10, "M线5问5答")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

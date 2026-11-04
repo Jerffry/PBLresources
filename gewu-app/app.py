@@ -189,7 +189,23 @@ def create_project():
     with db() as c:
         cur = c.execute("INSERT INTO projects(user_id,title,mode) VALUES(?,?,?)", (u["id"], title, mode))
         pid = cur.lastrowid
+    if d.get("seed_demo"):
+        _seed_demo(pid, title, mode)
     return jsonify({"id": pid})
+
+def _seed_demo(pid, title, mode):
+    """示范案例初始化：注入完整节点对话（N线六件套/M线五件套），
+    教师开箱即见全流程样例（节点流全亮、可导出、可继续对话或课后反馈）。"""
+    order = ["N0", "N1", "N2", "N3", "N4", "N5", "N6"] if mode == "global" else ["M1", "M2", "M3", "M4", "M5"]
+    table = _DEMO_GC if mode == "global" else _DEMO_M
+    with db() as c:
+        for i, node in enumerate(order):
+            first = (i == 0)
+            c.execute("INSERT INTO messages(project_id,role,content) VALUES(?, 'user', ?)",
+                      (pid, f"{title}，请开始{node}" if first else "继续"))
+            c.execute("INSERT INTO messages(project_id,role,content) VALUES(?, 'assistant', ?)",
+                      (pid, table[node]))
+        c.execute("UPDATE projects SET current_node=? WHERE id=?", (order[-1], pid))
 
 @app.get("/api/projects")
 def list_projects():

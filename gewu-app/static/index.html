@@ -27,7 +27,7 @@
     </div>
     <button id="btnNew" class="primary">＋ 新建设计项目</button>
     <div id="projectList"></div>
-    <div class="foot"><span class="dot"></span><span id="llmState">检测中…</span><br>格物 · V2.9 本地版 · <span id="btnBackup" title="下载整个数据库备份文件">⬇ 备份数据</span></div>
+    <div class="foot"><span class="dot"></span><span id="llmState">检测中…</span><br>格物 · V3.0 本地版 · <span id="btnBackup" title="下载整个数据库备份文件">⬇ 备份数据</span><br><button id="btnTheme">🌙 暗色</button></div>
   </aside>
 
   <main id="main">
@@ -138,6 +138,7 @@
       <label class="pick"><input type="radio" name="npmode" value="global" checked><div><b>🌍 全球胜任力</b><small>论文五步策略 · N0–N6 · 方案包六件套（1课时为主）</small></div></label>
       <label class="pick"><input type="radio" name="npmode" value="theme"><div><b>🧩 跨学科主题学习</b><small>课标-教材-主题四核-工具-课件 · M1–M5 · 问题链＋五件套</small></div></label>
     </div>
+    <label class="chk"><input type="checkbox" id="npSeed"> 以完整示范案例初始化（开箱即见全流程，可导出方案包）</label>
     <div class="row">
       <button id="npCancel" class="ghost">取消</button>
       <button id="npCreate" class="primary">创建并开始</button>

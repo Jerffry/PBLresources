@@ -170,9 +170,24 @@ let current = null;   // {id,title,mode,current_node}
 let streaming = false;
 let es = null;
 
+/* ---------- 主题（暗色/亮色）：记忆手动选择，默认跟随系统 ---------- */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $("btnTheme").textContent = t === "dark" ? "☀️ 亮色" : "🌙 暗色";
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = t === "dark" ? "#0B141D" : "#0E2740";
+}
+
 /* ---------- 初始化 ---------- */
 async function init() {
   if (!token()) { gotoLogin(); return; }
+  const saved = localStorage.getItem("gewu_theme");
+  applyTheme(saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+  $("btnTheme").onclick = () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("gewu_theme", next);
+    applyTheme(next);
+  };
   let me;
   try { me = await api("/api/auth/me"); }
   catch (_) { return; }  // 401 已跳转登录页
@@ -374,7 +389,7 @@ async function createProject() {
   const title = $("npTitle").value.trim() || "未命名课题";
   const mode = document.querySelector('input[name="npmode"]:checked').value;
   const d = await api("/api/projects", {
-    method: "POST", body: JSON.stringify({ title, mode }),
+    method: "POST", body: JSON.stringify({ title, mode, seed_demo: $("npSeed").checked }),
   });
   $("modalNew").classList.add("hidden");
   $("npTitle").value = "";
